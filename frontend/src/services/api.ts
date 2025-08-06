@@ -5,10 +5,12 @@ class APIService {
 
   constructor() {
     this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+    console.log(`🌐 API Base URL: ${this.baseUrl}`);
   }
 
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${this.baseUrl}/api/v1${endpoint}`;
+    console.log(`🔗 Making API request to: ${url}`);
     
     try {
       const response = await fetch(url, {
@@ -19,6 +21,8 @@ class APIService {
         ...options,
       });
 
+      console.log(`📡 Response status: ${response.status} for ${endpoint}`);
+
       if (!response.ok) {
         const errorData: APIError = await response.json().catch(() => ({
           error: `HTTP ${response.status}: ${response.statusText}`,
@@ -28,7 +32,7 @@ class APIService {
 
       return await response.json();
     } catch (error) {
-      console.error(`API request failed for ${endpoint}:`, error);
+      console.error(`❌ API request failed for ${endpoint}:`, error);
       throw error;
     }
   }
