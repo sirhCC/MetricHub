@@ -30,19 +30,35 @@ func main() {
 		logger.Fatal("Failed to load configuration", zap.Error(err))
 	}
 
-	// Initialize storage
-	db, err := storage.NewDatabase(cfg.DatabaseURL)
-	if err != nil {
-		logger.Fatal("Failed to initialize database", zap.Error(err))
+	// Initialize storage (optional for development)
+	var db *storage.Database
+	var redis *storage.Redis
+	
+	if cfg.DatabaseURL != "" {
+		var err error
+		db, err = storage.NewDatabase(cfg.DatabaseURL)
+		if err != nil {
+			logger.Warn("Failed to initialize database (continuing without it)", zap.Error(err))
+		} else {
+			defer db.Close()
+			logger.Info("Database connection established")
+		}
+	} else {
+		logger.Info("Running without database connection (development mode)")
 	}
-	defer db.Close()
 
-	// Initialize Redis
-	redis, err := storage.NewRedis(cfg.RedisURL)
-	if err != nil {
-		logger.Fatal("Failed to initialize Redis", zap.Error(err))
+	if cfg.RedisURL != "" {
+		var err error
+		redis, err = storage.NewRedis(cfg.RedisURL)
+		if err != nil {
+			logger.Warn("Failed to initialize Redis (continuing without it)", zap.Error(err))
+		} else {
+			defer redis.Close()
+			logger.Info("Redis connection established")
+		}
+	} else {
+		logger.Info("Running without Redis connection (development mode)")
 	}
-	defer redis.Close()
 
 	// Set Gin mode based on environment
 	if cfg.Environment == "production" {
