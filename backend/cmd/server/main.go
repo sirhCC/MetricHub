@@ -1,0 +1,92 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/sirhCC/MetricHub/internal/api"
+	"github.com/sirhCC/MetricHub/internal/config"
+	"github.com/sirhCC/MetricHub/internal/storage"
+	"go.uber.org/zap"
+)
+
+func main() {
+	// Initialize logger
+	logger, err := zap.NewProduction()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
+	}
+	defer logger.Sync()
+
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Fatal("Failed to load configuration", zap.Error(err))
+	}
+
+	// Initialize storage
+	db, err := storage.NewDatabase(cfg.DatabaseURL)
+	if err != nil {
+		logger.Fatal("Failed to initialize database", zap.Error(err))
+	}
+	defer db.Close()
+
+	// Initialize Redis
+	redis, err := storage.NewRedis(cfg.RedisURL)
+	if err != nil {
+		logger.Fatal("Failed to initialize Redis", zap.Error(err))
+	}
+	defer redis.Close()
+
+	// Set Gin mode based on environment
+	if cfg.Environment == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	// Initialize API router
+	router := api.NewRouter(logger, db, redis)
+
+	// Create HTTP server
+	srv := &http.Server{
+		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		Handler:      router,
+		ReadTimeout:  time.Second * 15,
+		WriteTimeout: time.Second * 15,
+		IdleTimeout:  time.Second * 60,
+	}
+
+	// Start server in a goroutine
+	go func() {
+		logger.Info("Starting MetricHub server",
+			zap.String("address", srv.Addr),
+			zap.String("environment", cfg.Environment))
+
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("Failed to start server", zap.Error(err))
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("Shutting down server...")
+
+	// Create a deadline for shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Attempt graceful shutdown
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Fatal("Server forced to shutdown", zap.Error(err))
+	}
+
+	logger.Info("Server exited")
+}
