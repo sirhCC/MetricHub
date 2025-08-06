@@ -36,6 +36,22 @@ MetricHub is an open-source platform that collects DevOps metrics from multiple 
 
 ## 🚀 Quick Start
 
+### Current Development Status
+
+✅ **Working Features:**
+- Complete React TypeScript frontend with beautiful dashboard
+- Full Go backend API with DORA metrics endpoints
+- Real-time DORA metrics visualization (Deployment Frequency, Lead Time, MTTR, Change Failure Rate)
+- Plugin management interface
+- Health monitoring and system status
+- CORS-enabled API for frontend integration
+
+🚧 **In Development:**
+- Database integration (PostgreSQL + Redis)
+- Real data source connectors (GitHub, GitLab, Jenkins)
+- Community benchmarking features
+- Authentication system
+
 ### Prerequisites
 
 - **Docker & Docker Compose** (recommended)
@@ -57,17 +73,60 @@ open http://localhost:3000
 
 ### 2. Local Development
 
+#### Backend (Go Server)
+
 ```bash
-# Start infrastructure services
-docker-compose -f docker-compose.dev.yml up postgres redis nats
-
-# Terminal 1: Start backend
+# Navigate to backend directory
 cd backend
-go run cmd/server/main.go
 
-# Terminal 2: Start frontend
+# Install Go dependencies
+go mod tidy
+
+# Start the Go server (runs on port 8080)
+go run cmd/server/main.go
+```
+
+#### Frontend (React Dashboard)
+
+```bash
+# Navigate to frontend directory  
 cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server (runs on port 5173)
 npm run dev
+```
+
+#### Access the Application
+
+- **Frontend Dashboard**: <http://localhost:5173>
+- **Backend API**: <http://localhost:8080>
+- **Health Check**: <http://localhost:8080/api/v1/health>
+- **DORA Metrics API**: <http://localhost:8080/api/v1/metrics/dora>
+
+#### Available API Endpoints
+
+```bash
+# Health & Status
+GET /api/v1/health                           # System health check
+GET /api/v1/health/database                  # Database status
+GET /api/v1/health/redis                     # Redis status
+
+# DORA Metrics (with mock data)
+GET /api/v1/metrics/dora                     # All DORA metrics
+GET /api/v1/metrics/dora/deployment-frequency # Deployment frequency
+GET /api/v1/metrics/dora/lead-time           # Lead time for changes
+GET /api/v1/metrics/dora/mttr                # Mean time to recovery
+GET /api/v1/metrics/dora/change-failure-rate # Change failure rate
+
+# Plugin Management
+GET /api/v1/plugins                          # List available plugins
+GET /api/v1/plugins/:name/health             # Plugin health status
+
+# Webhooks
+POST /api/v1/webhook/:plugin                 # Plugin-specific webhooks
 ```
 
 ## 📊 DORA Metrics
@@ -81,31 +140,37 @@ MetricHub calculates the four key DORA metrics:
 | **Mean Time to Recovery** | Time to recover from incidents | Less than 1 hour |
 | **Change Failure Rate** | Percentage of deployments causing failures | 0-15% |
 
-## 🔌 Supported Integrations
+## 🔌 Planned Integrations
+
+> **Note**: MetricHub is currently in development. The integrations below are planned for future releases.
 
 ### CI/CD Platforms
-- ✅ GitHub Actions
-- ✅ GitLab CI/CD
-- ✅ Jenkins
-- ✅ Azure DevOps
-- 🚧 CircleCI (coming soon)
-- 🚧 Tekton (coming soon)
+
+- 🚧 GitHub Actions (planned)
+- 🚧 GitLab CI/CD (planned)
+- 🚧 Jenkins (planned)
+- 🚧 Azure DevOps (planned)
+- 🚧 CircleCI (planned)
+- 🚧 Tekton (planned)
 
 ### Incident Management
-- ✅ PagerDuty
-- ✅ Opsgenie
-- 🚧 Incident.io (coming soon)
+
+- 🚧 PagerDuty (planned)
+- 🚧 Opsgenie (planned)
+- 🚧 Incident.io (planned)
 
 ### Monitoring
-- ✅ Prometheus
-- ✅ Grafana
-- 🚧 DataDog (coming soon)
+
+- 🚧 Prometheus (planned)
+- 🚧 Grafana (planned)
+- 🚧 DataDog (planned)
 
 ### Version Control
-- ✅ GitHub
-- ✅ GitLab
-- ✅ Bitbucket
-- 🚧 Azure Repos (coming soon)
+
+- 🚧 GitHub (planned)
+- 🚧 GitLab (planned)
+- 🚧 Bitbucket (planned)
+- 🚧 Azure Repos (planned)
 
 ## 🛠️ Development
 
