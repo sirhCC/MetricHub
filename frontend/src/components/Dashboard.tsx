@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { Activity, TrendingUp, Clock, AlertTriangle, CheckCircle, XCircle, Settings, Zap, Target } from 'lucide-react';
+import { Activity, TrendingUp, Clock, AlertTriangle, CheckCircle, XCircle, Settings, Zap, Target, BarChart3, Puzzle } from 'lucide-react';
+import { useState } from 'react';
 import apiService from '../services/api';
+import MetricsChart from './MetricsChart';
+import PluginManagement from './PluginManagement';
 
 interface MetricCardProps {
   title: string;
@@ -101,6 +104,8 @@ function MetricCard({ title, value, unit, trend, icon, description, color }: Met
 }
 
 function Dashboard() {
+  const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'plugins'>('overview');
+  
   const { data: doraMetrics, isLoading, error } = useQuery({
     queryKey: ['dora-metrics'],
     queryFn: () => apiService.getDoraMetrics(),
@@ -167,6 +172,43 @@ function Dashboard() {
                   <p className="text-sm text-gray-500">Universal DevOps Metrics</p>
                 </div>
               </div>
+
+              {/* Navigation Tabs */}
+              <nav className="flex items-center space-x-1 bg-white/60 backdrop-blur-sm rounded-xl p-1 border border-white/40 shadow-lg">
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    activeTab === 'overview'
+                      ? 'bg-white text-blue-600 shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                  }`}
+                >
+                  <Activity className="h-4 w-4" />
+                  <span>Overview</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('charts')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    activeTab === 'charts'
+                      ? 'bg-white text-blue-600 shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                  }`}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span>Analytics</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('plugins')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    activeTab === 'plugins'
+                      ? 'bg-white text-blue-600 shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                  }`}
+                >
+                  <Puzzle className="h-4 w-4" />
+                  <span>Plugins</span>
+                </button>
+              </nav>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -201,33 +243,35 @@ function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Hero Section */}
-        <div className="text-center mb-12">
-          <div className="relative">
-            <h2 className="text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-4">
-              DevOps Performance Dashboard
-            </h2>
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-lg blur opacity-10"></div>
-          </div>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Track your team's DORA metrics and accelerate software delivery with data-driven insights
-          </p>
-        </div>
+        {activeTab === 'overview' && (
+          <>
+            {/* Hero Section */}
+            <div className="text-center mb-12">
+              <div className="relative">
+                <h2 className="text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-4">
+                  DevOps Performance Dashboard
+                </h2>
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-lg blur opacity-10"></div>
+              </div>
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                Track your team's DORA metrics and accelerate software delivery with data-driven insights
+              </p>
+            </div>
 
-        {/* DORA Metrics Grid */}
-        <div className="mb-16">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h3 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-2">
-                DORA Metrics
-              </h3>
-              <p className="text-gray-600">Four key metrics that indicate software delivery performance</p>
-            </div>
-            <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-gray-700">Live Data</span>
-            </div>
-          </div>
+            {/* DORA Metrics Grid */}
+            <div className="mb-16">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-2">
+                    DORA Metrics
+                  </h3>
+                  <p className="text-gray-600">Four key metrics that indicate software delivery performance</p>
+                </div>
+                <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-gray-700">Live Data</span>
+                </div>
+              </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <MetricCard
@@ -378,6 +422,63 @@ function Dashboard() {
             Built with <span className="text-red-500">❤️</span> for high-performing development teams
           </p>
         </div>
+        </>
+        )}
+
+        {activeTab === 'charts' && (
+          <div className="space-y-8">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-4">
+                DORA Metrics Analytics
+              </h2>
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                Visualize trends and patterns in your software delivery performance
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <MetricsChart
+                metric="deploymentFreq"
+                title="Deployment Frequency Trend"
+                color="#3B82F6"
+                gradientId="deploymentGradient"
+              />
+              <MetricsChart
+                metric="leadTime"
+                title="Lead Time Trend"
+                color="#8B5CF6"
+                gradientId="leadTimeGradient"
+              />
+              <MetricsChart
+                metric="mttr"
+                title="Mean Time to Recovery"
+                color="#10B981"
+                gradientId="mttrGradient"
+              />
+              <MetricsChart
+                metric="changeFailureRate"
+                title="Change Failure Rate"
+                color="#F59E0B"
+                gradientId="failureGradient"
+              />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'plugins' && (
+          <div className="space-y-8">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-4">
+                Plugin Management
+              </h2>
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                Configure and manage your data collection integrations
+              </p>
+            </div>
+
+            <PluginManagement />
+          </div>
+        )}
       </main>
     </div>
   );
