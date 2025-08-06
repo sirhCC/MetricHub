@@ -1,0 +1,24 @@
+{
+  "name": "metrichub",
+  "version": "1.0.0",
+  "description": "> **Universal DevOps Metrics Collector** - Aggregate DORA metrics from any tool into unified dashboards with community benchmarking.",
+  "main": "mock-api-server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sirhCC/MetricHub.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sirhCC/MetricHub/issues"
+  },
+  "homepage": "https://github.com/sirhCC/MetricHub#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  }
+}
