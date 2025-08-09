@@ -53,7 +53,11 @@ func (r *Router) redisHealth(c *gin.Context) {
 // DORA Metrics handlers
 func (r *Router) getDoraMetrics(c *gin.Context) {
 	tr := r.parseTimeRange(c)
-	result, err := r.calculator.CalculateAll(r.deployments, r.incidents, tr)
+	r.mu.RLock()
+	deps := append([]metrics.Deployment(nil), r.deployments...)
+	incs := append([]metrics.Incident(nil), r.incidents...)
+	r.mu.RUnlock()
+	result, err := r.calculator.CalculateAll(deps, incs, tr)
 	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error":"calculation failed"}); return }
 	classification := r.calculator.ClassifyPerformance(result)
 	overall := r.calculator.GetOverallPerformance(classification)
@@ -78,22 +82,26 @@ func (r *Router) getDoraMetrics(c *gin.Context) {
 
 func (r *Router) getDeploymentFrequency(c *gin.Context) {
 	tr := r.parseTimeRange(c)
-	freq := r.calculator.CalculateDeploymentFrequency(r.deployments, tr)
+	r.mu.RLock(); deps := append([]metrics.Deployment(nil), r.deployments...); r.mu.RUnlock()
+	freq := r.calculator.CalculateDeploymentFrequency(deps, tr)
 	c.JSON(http.StatusOK, gin.H{"value": freq, "unit":"per_day", "time_range": tr})
 }
 
 func (r *Router) getLeadTime(c *gin.Context) {
-	lt := r.calculator.CalculateLeadTime(r.deployments)
+	r.mu.RLock(); deps := append([]metrics.Deployment(nil), r.deployments...); r.mu.RUnlock()
+	lt := r.calculator.CalculateLeadTime(deps)
 	c.JSON(http.StatusOK, gin.H{"value": lt.String(), "unit":"duration"})
 }
 
 func (r *Router) getMTTR(c *gin.Context) {
-	mttr := r.calculator.CalculateMTTR(r.incidents)
+	r.mu.RLock(); incs := append([]metrics.Incident(nil), r.incidents...); r.mu.RUnlock()
+	mttr := r.calculator.CalculateMTTR(incs)
 	c.JSON(http.StatusOK, gin.H{"value": mttr.String(), "unit":"duration"})
 }
 
 func (r *Router) getChangeFailureRate(c *gin.Context) {
-	cfr := r.calculator.CalculateChangeFailureRate(r.deployments, r.incidents)
+	r.mu.RLock(); deps := append([]metrics.Deployment(nil), r.deployments...); incs := append([]metrics.Incident(nil), r.incidents...); r.mu.RUnlock()
+	cfr := r.calculator.CalculateChangeFailureRate(deps, incs)
 	c.JSON(http.StatusOK, gin.H{"value": cfr, "unit":"ratio"})
 }
 
@@ -237,7 +245,7 @@ func (r *Router) createDeployment(c *gin.Context) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	r.deployments = append(r.deployments, dep)
+	r.mu.Lock(); r.deployments = append(r.deployments, dep); r.mu.Unlock()
 	c.JSON(http.StatusCreated, gin.H{"deployment": dep})
 }
 
@@ -270,7 +278,7 @@ func (r *Router) createIncident(c *gin.Context) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	r.incidents = append(r.incidents, inc)
+	r.mu.Lock(); r.incidents = append(r.incidents, inc); r.mu.Unlock()
 	c.JSON(http.StatusCreated, gin.H{"incident": inc})
 }
 
@@ -280,8 +288,7 @@ func (r *Router) resolveIncident(c *gin.Context) {
 	for i := range r.incidents {
 		if r.incidents[i].ID == id {
 			if r.incidents[i].ResolvedTime != nil { c.JSON(http.StatusBadRequest, gin.H{"error":"already resolved"}); return }
-			r.incidents[i].ResolvedTime = &now
-			r.incidents[i].UpdatedAt = time.Now()
+			r.mu.Lock(); r.incidents[i].ResolvedTime = &now; r.incidents[i].UpdatedAt = time.Now(); r.mu.Unlock()
 			c.JSON(http.StatusOK, gin.H{"resolved_at": now}); return
 		}
 	}
@@ -289,8 +296,25 @@ func (r *Router) resolveIncident(c *gin.Context) {
 }
 
 func (r *Router) listState(c *gin.Context) {
-	// stable ordering
-	sort.Slice(r.deployments, func(i,j int) bool { return r.deployments[i].StartTime.Before(r.deployments[j].StartTime) })
-	sort.Slice(r.incidents, func(i,j int) bool { return r.incidents[i].StartTime.Before(r.incidents[j].StartTime) })
-	c.JSON(http.StatusOK, gin.H{"deployments": r.deployments, "incidents": r.incidents})
+	r.mu.RLock()
+	deps := append([]metrics.Deployment(nil), r.deployments...)
+	incs := append([]metrics.Incident(nil), r.incidents...)
+	r.mu.RUnlock()
+	sort.Slice(deps, func(i,j int) bool { return deps[i].StartTime.Before(deps[j].StartTime) })
+	sort.Slice(incs, func(i,j int) bool { return incs[i].StartTime.Before(incs[j].StartTime) })
+	c.JSON(http.StatusOK, gin.H{"deployments": deps, "incidents": incs})
+}
+
+// listDeployments returns deployments only
+func (r *Router) listDeployments(c *gin.Context) {
+	r.mu.RLock(); deps := append([]metrics.Deployment(nil), r.deployments...); r.mu.RUnlock()
+	sort.Slice(deps, func(i,j int) bool { return deps[i].StartTime.Before(deps[j].StartTime) })
+	c.JSON(http.StatusOK, gin.H{"deployments": deps, "count": len(deps)})
+}
+
+// listIncidents returns incidents only
+func (r *Router) listIncidents(c *gin.Context) {
+	r.mu.RLock(); incs := append([]metrics.Incident(nil), r.incidents...); r.mu.RUnlock()
+	sort.Slice(incs, func(i,j int) bool { return incs[i].StartTime.Before(incs[j].StartTime) })
+	c.JSON(http.StatusOK, gin.H{"incidents": incs, "count": len(incs)})
 }

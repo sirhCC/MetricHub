@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"sync"
+	"github.com/google/uuid"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -17,6 +19,7 @@ type Router struct {
 	logger *zap.Logger
 	db     *storage.Database
 	redis  *storage.Redis
+	mu     sync.RWMutex
 	// In-memory development stores
 	deployments []metrics.Deployment
 	incidents   []metrics.Incident
@@ -37,6 +40,7 @@ func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis) *
 
 	// Add middleware
 	router.Use(gin.Recovery())
+	router.Use(r.requestIDMiddleware())
 	router.Use(r.loggingMiddleware())
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175"},
@@ -71,14 +75,16 @@ func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis) *
 			plugins.GET("/:name/health", r.pluginHealth)
 		}
 
-	// Webhook endpoints (placeholder for now)
-	api.POST("/webhook/:plugin", r.handleWebhook)
+		// Webhook endpoints (placeholder for now)
+		api.POST("/webhook/:plugin", r.handleWebhook)
 
-	// Ingestion (in-memory dev only)
-	api.POST("/deployments", r.createDeployment)
-	api.POST("/incidents", r.createIncident)
-	api.POST("/incidents/:id/resolve", r.resolveIncident)
-	api.GET("/state", r.listState)
+		// Ingestion (in-memory dev only) + listing
+		api.POST("/deployments", r.createDeployment)
+		api.GET("/deployments", r.listDeployments)
+		api.POST("/incidents", r.createIncident)
+		api.GET("/incidents", r.listIncidents)
+		api.POST("/incidents/:id/resolve", r.resolveIncident)
+		api.GET("/state", r.listState)
 	}
 
 	// Serve static files and handle SPA routing
@@ -98,6 +104,17 @@ func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis) *
 // loggingMiddleware adds request logging
 func (r *Router) loggingMiddleware() gin.HandlerFunc {
 	return gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+		requestID := param.Request.Header.Get("X-Request-ID")
+		if requestID == "" { // fallback to context value if present
+			if v := param.Request.Context().Value("request_id"); v != nil {
+				if rid, ok := v.(string); ok {
+					requestID = rid
+				}
+			}
+		}
+		if requestID == "" { // final safeguard
+			requestID = "unknown"
+		}
 		r.logger.Info("HTTP request",
 			zap.String("method", param.Method),
 			zap.String("path", param.Path),
@@ -105,9 +122,24 @@ func (r *Router) loggingMiddleware() gin.HandlerFunc {
 			zap.Duration("latency", param.Latency),
 			zap.String("client_ip", param.ClientIP),
 			zap.String("user_agent", param.Request.UserAgent()),
+			zap.String("request_id", requestID),
 		)
 		return ""
 	})
+}
+
+// requestIDMiddleware injects a unique request ID if not provided
+func (r *Router) requestIDMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rid := c.GetHeader("X-Request-ID")
+		if rid == "" {
+			rid = uuid.NewString()
+			c.Request.Header.Set("X-Request-ID", rid)
+		}
+		c.Set("request_id", rid)
+		c.Writer.Header().Set("X-Request-ID", rid)
+		c.Next()
+	}
 }
 
 // parseTimeRange parses an optional ?days=N parameter (default 30, max 365)
