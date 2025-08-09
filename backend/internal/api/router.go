@@ -20,6 +20,8 @@ type Router struct {
 	db     *storage.Database
 	redis  *storage.Redis
 	mu     sync.RWMutex
+	deploymentRepo storage.DeploymentRepository
+	incidentRepo   storage.IncidentRepository
 	// In-memory development stores
 	deployments []metrics.Deployment
 	incidents   []metrics.Incident
@@ -33,6 +35,11 @@ func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis) *
 		db:         db,
 		redis:      redis,
 		calculator: metrics.NewDORACalculator(),
+	}
+	if db != nil {
+		sqlDB := db.GetDB()
+		r.deploymentRepo = storage.NewPostgresDeploymentRepo(sqlDB)
+		r.incidentRepo = storage.NewPostgresIncidentRepo(sqlDB)
 	}
 
 	// Create Gin router
