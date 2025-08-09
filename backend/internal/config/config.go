@@ -27,6 +27,9 @@ type Config struct {
 
 	// Metrics configuration
 	MetricsEnabled bool
+
+	// Migration configuration
+	AutoMigrate bool
 }
 
 // Load configuration from environment variables
@@ -44,6 +47,7 @@ func Load() (*Config, error) {
 		LogLevel:  getEnvWithDefault("LOG_LEVEL", "info"),
 
 		MetricsEnabled: getEnvAsBoolWithDefault("METRICS_ENABLED", true),
+		AutoMigrate:    getEnvAsBoolWithDefault("AUTO_MIGRATE", true),
 	}
 
 	// Validate required configuration
