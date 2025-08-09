@@ -58,9 +58,9 @@ func (r *Router) getDoraMetrics(c *gin.Context) {
 	if r.deploymentRepo != nil && r.incidentRepo != nil { // database path
 		var err error
 		deps, err = r.deploymentRepo.ListRange(c.Request.Context(), tr.Start, tr.End)
-		if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load deployments"}); return }
+		if err != nil { respondError(c, ErrInternal, "failed to load deployments", nil); return }
 		incs, err = r.incidentRepo.ListRange(c.Request.Context(), tr.Start, tr.End)
-		if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load incidents"}); return }
+		if err != nil { respondError(c, ErrInternal, "failed to load incidents", nil); return }
 	} else { // in-memory fallback
 		r.mu.RLock()
 		deps = append([]metrics.Deployment(nil), r.deployments...)
@@ -68,25 +68,21 @@ func (r *Router) getDoraMetrics(c *gin.Context) {
 		r.mu.RUnlock()
 	}
 	result, err := r.calculator.CalculateAll(deps, incs, tr)
-	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "calculation failed"}); return }
+	if err != nil { respondError(c, ErrInternal, "calculation failed", nil); return }
 	classification := r.calculator.ClassifyPerformance(result)
 	overall := r.calculator.GetOverallPerformance(classification)
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"deployment_frequency": result.DeploymentFrequency,
-			"lead_time":            result.LeadTime.String(),
-			"mttr":                 result.MTTR.String(),
-			"change_failure_rate":  result.ChangeFailureRate,
-			"classification":       classification,
-			"overall_performance":  overall,
-		},
-		"metadata": gin.H{
-			"time_range":        gin.H{"start": tr.Start, "end": tr.End},
-			"last_updated":      time.Now().UTC(),
-			"data_quality":      result.DataQuality,
-			"deployments_count": len(deps),
-			"incidents_count":   len(incs),
-		},
+	respondOK(c, gin.H{
+		"deployment_frequency": result.DeploymentFrequency,
+		"lead_time":            result.LeadTime.String(),
+		"mttr":                 result.MTTR.String(),
+		"change_failure_rate":  result.ChangeFailureRate,
+		"classification":       classification,
+		"overall_performance":  overall,
+		"time_range":           gin.H{"start": tr.Start, "end": tr.End},
+		"last_updated":         time.Now().UTC(),
+		"data_quality":         result.DataQuality,
+		"deployments_count":    len(deps),
+		"incidents_count":      len(incs),
 	})
 }
 
@@ -267,7 +263,7 @@ type deploymentRequest struct {
 
 func (r *Router) createDeployment(c *gin.Context) {
 	var req deploymentRequest
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json"}); return }
+	if err := c.ShouldBindJSON(&req); err != nil { respondError(c, ErrValidation, "invalid json", nil); return }
 	start := time.Now(); if req.StartedAt != nil { start = *req.StartedAt }
 	dep := metrics.Deployment{
 		ID:          req.ID,
@@ -282,9 +278,9 @@ func (r *Router) createDeployment(c *gin.Context) {
 		UpdatedAt:   time.Now(),
 	}
 	if r.deploymentRepo != nil {
-		if err := r.deploymentRepo.Create(c.Request.Context(), &dep); err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to persist deployment"}); return }
+		if err := r.deploymentRepo.Create(c.Request.Context(), &dep); err != nil { respondError(c, ErrInternal, "failed to persist deployment", nil); return }
 	} else { r.mu.Lock(); r.deployments = append(r.deployments, dep); r.mu.Unlock() }
-	c.JSON(http.StatusCreated, gin.H{"deployment": dep})
+	c.JSON(http.StatusCreated, gin.H{"data": gin.H{"deployment": dep}, "trace_id": requestIDFromContext(c)})
 }
 
 type incidentRequest struct {
@@ -300,7 +296,7 @@ type incidentRequest struct {
 
 func (r *Router) createIncident(c *gin.Context) {
 	var req incidentRequest
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json"}); return }
+	if err := c.ShouldBindJSON(&req); err != nil { respondError(c, ErrValidation, "invalid json", nil); return }
 	start := time.Now(); if req.StartedAt != nil { start = *req.StartedAt }
 	inc := metrics.Incident{
 		ID:           req.ID,
@@ -315,27 +311,27 @@ func (r *Router) createIncident(c *gin.Context) {
 		UpdatedAt:    time.Now(),
 	}
 	if r.incidentRepo != nil {
-		if err := r.incidentRepo.Create(c.Request.Context(), &inc); err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to persist incident"}); return }
+		if err := r.incidentRepo.Create(c.Request.Context(), &inc); err != nil { respondError(c, ErrInternal, "failed to persist incident", nil); return }
 	} else { r.mu.Lock(); r.incidents = append(r.incidents, inc); r.mu.Unlock() }
-	c.JSON(http.StatusCreated, gin.H{"incident": inc})
+	c.JSON(http.StatusCreated, gin.H{"data": gin.H{"incident": inc}, "trace_id": requestIDFromContext(c)})
 }
 
 func (r *Router) resolveIncident(c *gin.Context) {
 	id := c.Param("id")
 	now := time.Now()
 	if r.incidentRepo != nil {
-		if err := r.incidentRepo.Resolve(c.Request.Context(), id, now); err != nil { c.JSON(http.StatusNotFound, gin.H{"error": "not found"}); return }
-		c.JSON(http.StatusOK, gin.H{"resolved_at": now})
+		if err := r.incidentRepo.Resolve(c.Request.Context(), id, now); err != nil { respondError(c, ErrNotFound, "incident not found", nil); return }
+		respondOK(c, gin.H{"resolved_at": now})
 		return
 	}
 	for i := range r.incidents {
 		if r.incidents[i].ID == id {
-			if r.incidents[i].ResolvedTime != nil { c.JSON(http.StatusBadRequest, gin.H{"error": "already resolved"}); return }
+			if r.incidents[i].ResolvedTime != nil { respondError(c, ErrConflict, "incident already resolved", nil); return }
 			r.mu.Lock(); r.incidents[i].ResolvedTime = &now; r.incidents[i].UpdatedAt = time.Now(); r.mu.Unlock()
-			c.JSON(http.StatusOK, gin.H{"resolved_at": now}); return
+			respondOK(c, gin.H{"resolved_at": now}); return
 		}
 	}
-	c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+	respondError(c, ErrNotFound, "incident not found", nil)
 }
 
 func (r *Router) listState(c *gin.Context) {
