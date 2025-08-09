@@ -86,8 +86,9 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// Initialize API router
-	router := api.NewRouter(logger, db, redis)
+	// Initialize API router with configured request timeout
+	requestTimeout := time.Duration(cfg.RequestTimeoutSeconds) * time.Second
+	router := api.NewRouter(logger, db, redis, requestTimeout)
 
 	// Create HTTP server
 	srv := &http.Server{
