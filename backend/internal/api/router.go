@@ -2,7 +2,6 @@ package api
 
 import (
 	"github.com/google/uuid"
-	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -49,6 +48,8 @@ func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis) *
 	router.Use(gin.Recovery())
 	router.Use(r.requestIDMiddleware())
 	router.Use(r.loggingMiddleware())
+	// Use default timeout of 5s (configurable via REQUEST_TIMEOUT_SECONDS env read by config; fallback here)
+	router.Use(r.timeoutMiddleware(5 * time.Second))
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -101,7 +102,7 @@ func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis) *
 		if len(c.Request.URL.Path) >= 4 && c.Request.URL.Path[:4] != "/api" {
 			c.File("./web/index.html")
 		} else {
-			c.JSON(http.StatusNotFound, gin.H{"error": "endpoint not found"})
+			respondError(c, ErrNotFound, "endpoint not found", nil)
 		}
 	})
 
