@@ -14,20 +14,28 @@ type Plugin interface {
 }
 
 // Manager orchestrates registered plugins.
-type Manager struct { plugins []Plugin }
+type Manager struct{ plugins []Plugin }
 
 // Register adds a plugin to the manager.
 func (m *Manager) Register(p Plugin) { m.plugins = append(m.plugins, p) }
 
 // InitializeAll runs Initialize on all registered plugins.
 func (m *Manager) InitializeAll(ctx context.Context) error {
-	for _, p := range m.plugins { if err := p.Initialize(ctx); err != nil { return err } }
+	for _, p := range m.plugins {
+		if err := p.Initialize(ctx); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // ShutdownAll runs Shutdown on all registered plugins (best-effort).
 func (m *Manager) ShutdownAll(ctx context.Context) error {
 	var firstErr error
-	for _, p := range m.plugins { if err := p.Shutdown(ctx); err != nil && firstErr == nil { firstErr = err } }
+	for _, p := range m.plugins {
+		if err := p.Shutdown(ctx); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
 	return firstErr
 }

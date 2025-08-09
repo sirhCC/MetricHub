@@ -33,7 +33,7 @@ func main() {
 	// Initialize storage (optional for development)
 	var db *storage.Database
 	var redis *storage.Redis
-	
+
 	if cfg.DatabaseURL != "" {
 		var err error
 		db, err = storage.NewDatabase(cfg.DatabaseURL)

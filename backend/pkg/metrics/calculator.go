@@ -30,12 +30,12 @@ func (c *DORACalculator) CalculateAll(deployments []Deployment, incidents []Inci
 
 	return &DORAMetrics{
 		DeploymentFrequency: deploymentFreq,
-		LeadTime:           leadTime,
-		MTTR:               mttr,
-		ChangeFailureRate:  changeFailureRate,
-		TimeRange:          timeRange,
-		CalculatedAt:       time.Now(),
-		DataQuality:        dataQuality,
+		LeadTime:            leadTime,
+		MTTR:                mttr,
+		ChangeFailureRate:   changeFailureRate,
+		TimeRange:           timeRange,
+		CalculatedAt:        time.Now(),
+		DataQuality:         dataQuality,
 	}, nil
 }
 
@@ -130,10 +130,10 @@ func (c *DORACalculator) CalculateChangeFailureRate(deployments []Deployment, in
 	for _, incident := range incidents {
 		// Find deployments that happened shortly before the incident
 		for _, deployment := range deployments {
-			if deployment.IsSuccessful() && 
-			   deployment.EndTime != nil && 
-			   incident.StartTime.Sub(*deployment.EndTime) > 0 && 
-			   incident.StartTime.Sub(*deployment.EndTime) < 2*time.Hour {
+			if deployment.IsSuccessful() &&
+				deployment.EndTime != nil &&
+				incident.StartTime.Sub(*deployment.EndTime) > 0 &&
+				incident.StartTime.Sub(*deployment.EndTime) < 2*time.Hour {
 				failedDeployments++
 				break // Only count one deployment per incident
 			}
@@ -195,10 +195,10 @@ func (c *DORACalculator) assessDataQuality(deployments []Deployment, incidents [
 type PerformanceLevel string
 
 const (
-	Elite      PerformanceLevel = "elite"
-	High       PerformanceLevel = "high"
-	Medium     PerformanceLevel = "medium"
-	Low        PerformanceLevel = "low"
+	Elite  PerformanceLevel = "elite"
+	High   PerformanceLevel = "high"
+	Medium PerformanceLevel = "medium"
+	Low    PerformanceLevel = "low"
 )
 
 // ClassifyPerformance classifies the team's performance based on DORA metrics
@@ -261,7 +261,7 @@ func (c *DORACalculator) ClassifyPerformance(metrics *DORAMetrics) map[string]Pe
 // GetOverallPerformance determines the overall performance level
 func (c *DORACalculator) GetOverallPerformance(classification map[string]PerformanceLevel) PerformanceLevel {
 	levels := make(map[PerformanceLevel]int)
-	
+
 	for _, level := range classification {
 		levels[level]++
 	}
@@ -270,7 +270,7 @@ func (c *DORACalculator) GetOverallPerformance(classification map[string]Perform
 	if levels[Elite] >= 3 {
 		return Elite
 	}
-	if levels[Elite] + levels[High] >= 3 {
+	if levels[Elite]+levels[High] >= 3 {
 		return High
 	}
 	if levels[Low] >= 3 {

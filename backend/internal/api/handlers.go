@@ -2,8 +2,8 @@ package api
 
 import (
 	"net/http"
-	"time"
 	"sort"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirhCC/MetricHub/pkg/metrics"
@@ -58,51 +58,63 @@ func (r *Router) getDoraMetrics(c *gin.Context) {
 	incs := append([]metrics.Incident(nil), r.incidents...)
 	r.mu.RUnlock()
 	result, err := r.calculator.CalculateAll(deps, incs, tr)
-	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error":"calculation failed"}); return }
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "calculation failed"})
+		return
+	}
 	classification := r.calculator.ClassifyPerformance(result)
 	overall := r.calculator.GetOverallPerformance(classification)
 	c.JSON(http.StatusOK, gin.H{
 		"data": gin.H{
 			"deployment_frequency": result.DeploymentFrequency,
-			"lead_time": result.LeadTime.String(),
-			"mttr": result.MTTR.String(),
-			"change_failure_rate": result.ChangeFailureRate,
-			"classification": classification,
-			"overall_performance": overall,
+			"lead_time":            result.LeadTime.String(),
+			"mttr":                 result.MTTR.String(),
+			"change_failure_rate":  result.ChangeFailureRate,
+			"classification":       classification,
+			"overall_performance":  overall,
 		},
 		"metadata": gin.H{
-			"time_range": gin.H{"start": tr.Start, "end": tr.End},
-			"last_updated": time.Now().UTC(),
-			"data_quality": result.DataQuality,
+			"time_range":        gin.H{"start": tr.Start, "end": tr.End},
+			"last_updated":      time.Now().UTC(),
+			"data_quality":      result.DataQuality,
 			"deployments_count": len(r.deployments),
-			"incidents_count": len(r.incidents),
+			"incidents_count":   len(r.incidents),
 		},
 	})
 }
 
 func (r *Router) getDeploymentFrequency(c *gin.Context) {
 	tr := r.parseTimeRange(c)
-	r.mu.RLock(); deps := append([]metrics.Deployment(nil), r.deployments...); r.mu.RUnlock()
+	r.mu.RLock()
+	deps := append([]metrics.Deployment(nil), r.deployments...)
+	r.mu.RUnlock()
 	freq := r.calculator.CalculateDeploymentFrequency(deps, tr)
-	c.JSON(http.StatusOK, gin.H{"value": freq, "unit":"per_day", "time_range": tr})
+	c.JSON(http.StatusOK, gin.H{"value": freq, "unit": "per_day", "time_range": tr})
 }
 
 func (r *Router) getLeadTime(c *gin.Context) {
-	r.mu.RLock(); deps := append([]metrics.Deployment(nil), r.deployments...); r.mu.RUnlock()
+	r.mu.RLock()
+	deps := append([]metrics.Deployment(nil), r.deployments...)
+	r.mu.RUnlock()
 	lt := r.calculator.CalculateLeadTime(deps)
-	c.JSON(http.StatusOK, gin.H{"value": lt.String(), "unit":"duration"})
+	c.JSON(http.StatusOK, gin.H{"value": lt.String(), "unit": "duration"})
 }
 
 func (r *Router) getMTTR(c *gin.Context) {
-	r.mu.RLock(); incs := append([]metrics.Incident(nil), r.incidents...); r.mu.RUnlock()
+	r.mu.RLock()
+	incs := append([]metrics.Incident(nil), r.incidents...)
+	r.mu.RUnlock()
 	mttr := r.calculator.CalculateMTTR(incs)
-	c.JSON(http.StatusOK, gin.H{"value": mttr.String(), "unit":"duration"})
+	c.JSON(http.StatusOK, gin.H{"value": mttr.String(), "unit": "duration"})
 }
 
 func (r *Router) getChangeFailureRate(c *gin.Context) {
-	r.mu.RLock(); deps := append([]metrics.Deployment(nil), r.deployments...); incs := append([]metrics.Incident(nil), r.incidents...); r.mu.RUnlock()
+	r.mu.RLock()
+	deps := append([]metrics.Deployment(nil), r.deployments...)
+	incs := append([]metrics.Incident(nil), r.incidents...)
+	r.mu.RUnlock()
 	cfr := r.calculator.CalculateChangeFailureRate(deps, incs)
-	c.JSON(http.StatusOK, gin.H{"value": cfr, "unit":"ratio"})
+	c.JSON(http.StatusOK, gin.H{"value": cfr, "unit": "ratio"})
 }
 
 // Plugin handlers
@@ -148,8 +160,8 @@ func (r *Router) pluginHealth(c *gin.Context) {
 		"last_check": time.Now().UTC(),
 		"metrics": gin.H{
 			"requests_per_minute": 25,
-			"error_rate":         0.02,
-			"response_time":      120,
+			"error_rate":          0.02,
+			"response_time":       120,
 		},
 	}
 
@@ -163,8 +175,8 @@ func (r *Router) handleWebhook(c *gin.Context) {
 
 	var payload map[string]interface{}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		r.logger.Error("Failed to parse webhook payload", 
-			zap.String("plugin", pluginName), 
+		r.logger.Error("Failed to parse webhook payload",
+			zap.String("plugin", pluginName),
 			zap.Error(err))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
 		return
@@ -178,7 +190,7 @@ func (r *Router) handleWebhook(c *gin.Context) {
 		"processed":    true,
 	}
 
-	r.logger.Info("Webhook processed", 
+	r.logger.Info("Webhook processed",
 		zap.String("plugin", pluginName),
 		zap.Any("payload", payload))
 
@@ -191,18 +203,18 @@ func generateMockHistoricalData(metricType string) []gin.H {
 	now := time.Now()
 
 	for i := 0; i < 30; i++ {
-		date := now.AddDate(0, 0, -(29-i))
+		date := now.AddDate(0, 0, -(29 - i))
 		var value interface{}
 
 		switch metricType {
 		case "deployment_frequency":
-			value = 1 + (i%5) // 1-5 deployments per day
+			value = 1 + (i % 5) // 1-5 deployments per day
 		case "lead_time":
-			value = 2 + (i%12) // 2-14 hours
+			value = 2 + (i % 12) // 2-14 hours
 		case "mttr":
-			value = 1 + (i%4) // 1-5 hours
+			value = 1 + (i % 4) // 1-5 hours
 		case "change_failure_rate":
-			value = 5 + (i%10) // 5-15%
+			value = 5 + (i % 10) // 5-15%
 		default:
 			value = i
 		}
@@ -218,67 +230,81 @@ func generateMockHistoricalData(metricType string) []gin.H {
 
 // Ingestion endpoints (development in-memory only)
 type deploymentRequest struct {
-	ID        string     `json:"id"`
-	StartedAt *time.Time `json:"started_at"`
-	EndedAt   *time.Time `json:"ended_at"`
-	Status    string     `json:"status"`
-	CommitSHA string     `json:"commit_sha"`
-	Service   string     `json:"service"`
-	Environment string   `json:"environment"`
+	ID          string     `json:"id"`
+	StartedAt   *time.Time `json:"started_at"`
+	EndedAt     *time.Time `json:"ended_at"`
+	Status      string     `json:"status"`
+	CommitSHA   string     `json:"commit_sha"`
+	Service     string     `json:"service"`
+	Environment string     `json:"environment"`
 }
 
 func (r *Router) createDeployment(c *gin.Context) {
 	var req deploymentRequest
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error":"invalid json"}); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json"})
+		return
+	}
 	start := time.Now()
-	if req.StartedAt != nil { start = *req.StartedAt }
+	if req.StartedAt != nil {
+		start = *req.StartedAt
+	}
 	status := metrics.DeploymentStatus(req.Status)
 	dep := metrics.Deployment{
-		ID: req.ID,
-		Service: req.Service,
+		ID:          req.ID,
+		Service:     req.Service,
 		Environment: req.Environment,
-		StartTime: start,
-		EndTime: req.EndedAt,
-		Status: status,
-		CommitSHA: req.CommitSHA,
-		CommitTime: start, // placeholder
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		StartTime:   start,
+		EndTime:     req.EndedAt,
+		Status:      status,
+		CommitSHA:   req.CommitSHA,
+		CommitTime:  start, // placeholder
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
-	r.mu.Lock(); r.deployments = append(r.deployments, dep); r.mu.Unlock()
+	r.mu.Lock()
+	r.deployments = append(r.deployments, dep)
+	r.mu.Unlock()
 	c.JSON(http.StatusCreated, gin.H{"deployment": dep})
 }
 
 type incidentRequest struct {
-	ID           string     `json:"id"`
-	StartedAt    *time.Time `json:"started_at"`
-	ResolvedAt   *time.Time `json:"resolved_at"`
-	Severity     string     `json:"severity"`
-	Title        string     `json:"title"`
-	Description  string     `json:"description"`
-	Service      string     `json:"service"`
-	Environment  string     `json:"environment"`
+	ID          string     `json:"id"`
+	StartedAt   *time.Time `json:"started_at"`
+	ResolvedAt  *time.Time `json:"resolved_at"`
+	Severity    string     `json:"severity"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	Service     string     `json:"service"`
+	Environment string     `json:"environment"`
 }
 
 func (r *Router) createIncident(c *gin.Context) {
 	var req incidentRequest
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error":"invalid json"}); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json"})
+		return
+	}
 	start := time.Now()
-	if req.StartedAt != nil { start = *req.StartedAt }
+	if req.StartedAt != nil {
+		start = *req.StartedAt
+	}
 	severity := metrics.IncidentSeverity(req.Severity)
 	inc := metrics.Incident{
-		ID: req.ID,
-		Title: req.Title,
-		Description: req.Description,
-		Service: req.Service,
-		Environment: req.Environment,
-		Severity: severity,
-		StartTime: start,
+		ID:           req.ID,
+		Title:        req.Title,
+		Description:  req.Description,
+		Service:      req.Service,
+		Environment:  req.Environment,
+		Severity:     severity,
+		StartTime:    start,
 		ResolvedTime: req.ResolvedAt,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
-	r.mu.Lock(); r.incidents = append(r.incidents, inc); r.mu.Unlock()
+	r.mu.Lock()
+	r.incidents = append(r.incidents, inc)
+	r.mu.Unlock()
 	c.JSON(http.StatusCreated, gin.H{"incident": inc})
 }
 
@@ -287,12 +313,19 @@ func (r *Router) resolveIncident(c *gin.Context) {
 	now := time.Now()
 	for i := range r.incidents {
 		if r.incidents[i].ID == id {
-			if r.incidents[i].ResolvedTime != nil { c.JSON(http.StatusBadRequest, gin.H{"error":"already resolved"}); return }
-			r.mu.Lock(); r.incidents[i].ResolvedTime = &now; r.incidents[i].UpdatedAt = time.Now(); r.mu.Unlock()
-			c.JSON(http.StatusOK, gin.H{"resolved_at": now}); return
+			if r.incidents[i].ResolvedTime != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "already resolved"})
+				return
+			}
+			r.mu.Lock()
+			r.incidents[i].ResolvedTime = &now
+			r.incidents[i].UpdatedAt = time.Now()
+			r.mu.Unlock()
+			c.JSON(http.StatusOK, gin.H{"resolved_at": now})
+			return
 		}
 	}
-	c.JSON(http.StatusNotFound, gin.H{"error":"not found"})
+	c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 }
 
 func (r *Router) listState(c *gin.Context) {
@@ -300,21 +333,25 @@ func (r *Router) listState(c *gin.Context) {
 	deps := append([]metrics.Deployment(nil), r.deployments...)
 	incs := append([]metrics.Incident(nil), r.incidents...)
 	r.mu.RUnlock()
-	sort.Slice(deps, func(i,j int) bool { return deps[i].StartTime.Before(deps[j].StartTime) })
-	sort.Slice(incs, func(i,j int) bool { return incs[i].StartTime.Before(incs[j].StartTime) })
+	sort.Slice(deps, func(i, j int) bool { return deps[i].StartTime.Before(deps[j].StartTime) })
+	sort.Slice(incs, func(i, j int) bool { return incs[i].StartTime.Before(incs[j].StartTime) })
 	c.JSON(http.StatusOK, gin.H{"deployments": deps, "incidents": incs})
 }
 
 // listDeployments returns deployments only
 func (r *Router) listDeployments(c *gin.Context) {
-	r.mu.RLock(); deps := append([]metrics.Deployment(nil), r.deployments...); r.mu.RUnlock()
-	sort.Slice(deps, func(i,j int) bool { return deps[i].StartTime.Before(deps[j].StartTime) })
+	r.mu.RLock()
+	deps := append([]metrics.Deployment(nil), r.deployments...)
+	r.mu.RUnlock()
+	sort.Slice(deps, func(i, j int) bool { return deps[i].StartTime.Before(deps[j].StartTime) })
 	c.JSON(http.StatusOK, gin.H{"deployments": deps, "count": len(deps)})
 }
 
 // listIncidents returns incidents only
 func (r *Router) listIncidents(c *gin.Context) {
-	r.mu.RLock(); incs := append([]metrics.Incident(nil), r.incidents...); r.mu.RUnlock()
-	sort.Slice(incs, func(i,j int) bool { return incs[i].StartTime.Before(incs[j].StartTime) })
+	r.mu.RLock()
+	incs := append([]metrics.Incident(nil), r.incidents...)
+	r.mu.RUnlock()
+	sort.Slice(incs, func(i, j int) bool { return incs[i].StartTime.Before(incs[j].StartTime) })
 	c.JSON(http.StatusOK, gin.H{"incidents": incs, "count": len(incs)})
 }

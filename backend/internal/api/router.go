@@ -1,11 +1,11 @@
 package api
 
 import (
+	"github.com/google/uuid"
 	"net/http"
 	"strconv"
-	"time"
 	"sync"
-	"github.com/google/uuid"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -29,9 +29,9 @@ type Router struct {
 // NewRouter creates a new API router with all dependencies
 func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis) *gin.Engine {
 	r := &Router{
-		logger: logger,
-		db:     db,
-		redis:  redis,
+		logger:     logger,
+		db:         db,
+		redis:      redis,
 		calculator: metrics.NewDORACalculator(),
 	}
 
@@ -146,9 +146,11 @@ func (r *Router) requestIDMiddleware() gin.HandlerFunc {
 func (r *Router) parseTimeRange(c *gin.Context) metrics.TimeRange {
 	days := 30
 	if v := c.Query("days"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 365 { days = n }
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 365 {
+			days = n
+		}
 	}
 	end := time.Now()
-	start := end.AddDate(0,0,-days+1)
+	start := end.AddDate(0, 0, -days+1)
 	return metrics.TimeRange{Start: start, End: end}
 }
