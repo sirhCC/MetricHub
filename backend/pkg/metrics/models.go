@@ -30,22 +30,22 @@ const (
 
 // Deployment represents a deployment event in the system
 type Deployment struct {
-	ID           string            `json:"id"`
-	Service      string            `json:"service"`
-	Environment  string            `json:"environment"`
-	Version      string            `json:"version"`
-	Status       DeploymentStatus  `json:"status"`
-	StartTime    time.Time         `json:"start_time"`
-	EndTime      *time.Time        `json:"end_time,omitempty"`
-	CommitSHA    string            `json:"commit_sha"`
-	CommitTime   time.Time         `json:"commit_time"`
-	Author       string            `json:"author"`
-	Repository   string            `json:"repository"`
-	Branch       string            `json:"branch"`
-	BuildURL     string            `json:"build_url,omitempty"`
-	Tags         map[string]string `json:"tags,omitempty"`
-	CreatedAt    time.Time         `json:"created_at"`
-	UpdatedAt    time.Time         `json:"updated_at"`
+	ID          string            `json:"id"`
+	Service     string            `json:"service"`
+	Environment string            `json:"environment"`
+	Version     string            `json:"version"`
+	Status      DeploymentStatus  `json:"status"`
+	StartTime   time.Time         `json:"start_time"`
+	EndTime     *time.Time        `json:"end_time,omitempty"`
+	CommitSHA   string            `json:"commit_sha"`
+	CommitTime  time.Time         `json:"commit_time"`
+	Author      string            `json:"author"`
+	Repository  string            `json:"repository"`
+	Branch      string            `json:"branch"`
+	BuildURL    string            `json:"build_url,omitempty"`
+	Tags        map[string]string `json:"tags,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
 }
 
 // LeadTime calculates the lead time for this deployment
@@ -76,19 +76,19 @@ func (d *Deployment) IsFailed() bool {
 
 // Incident represents an incident/outage in the system
 type Incident struct {
-	ID           string           `json:"id"`
-	Title        string           `json:"title"`
-	Description  string           `json:"description"`
-	Service      string           `json:"service"`
-	Environment  string           `json:"environment"`
-	Severity     IncidentSeverity `json:"severity"`
-	StartTime    time.Time        `json:"start_time"`
-	ResolvedTime *time.Time       `json:"resolved_time,omitempty"`
-	RootCause    string           `json:"root_cause,omitempty"`
-	Assignee     string           `json:"assignee,omitempty"`
+	ID           string            `json:"id"`
+	Title        string            `json:"title"`
+	Description  string            `json:"description"`
+	Service      string            `json:"service"`
+	Environment  string            `json:"environment"`
+	Severity     IncidentSeverity  `json:"severity"`
+	StartTime    time.Time         `json:"start_time"`
+	ResolvedTime *time.Time        `json:"resolved_time,omitempty"`
+	RootCause    string            `json:"root_cause,omitempty"`
+	Assignee     string            `json:"assignee,omitempty"`
 	Tags         map[string]string `json:"tags,omitempty"`
-	CreatedAt    time.Time        `json:"created_at"`
-	UpdatedAt    time.Time        `json:"updated_at"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
 }
 
 // MTTR calculates the mean time to recovery for this incident
@@ -128,12 +128,12 @@ func (tr *TimeRange) Contains(t time.Time) bool {
 // DORAMetrics represents the calculated DORA metrics
 type DORAMetrics struct {
 	DeploymentFrequency float64       `json:"deployment_frequency"` // Deployments per day
-	LeadTime           time.Duration `json:"lead_time"`             // Average lead time
-	MTTR               time.Duration `json:"mttr"`                  // Mean time to recovery
-	ChangeFailureRate  float64       `json:"change_failure_rate"`   // Percentage as decimal (0.15 = 15%)
-	TimeRange          TimeRange     `json:"time_range"`
-	CalculatedAt       time.Time     `json:"calculated_at"`
-	DataQuality        string        `json:"data_quality"` // high, medium, low
+	LeadTime            time.Duration `json:"lead_time"`            // Average lead time
+	MTTR                time.Duration `json:"mttr"`                 // Mean time to recovery
+	ChangeFailureRate   float64       `json:"change_failure_rate"`  // Percentage as decimal (0.15 = 15%)
+	TimeRange           TimeRange     `json:"time_range"`
+	CalculatedAt        time.Time     `json:"calculated_at"`
+	DataQuality         string        `json:"data_quality"` // high, medium, low
 }
 
 // MetricsFilter represents filters for metrics queries
