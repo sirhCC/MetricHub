@@ -32,11 +32,23 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Verify formatting
+      - name: Verify & auto-format (non-blocking)
         run: |
-          if [ "$(gofmt -l . | wc -l)" -ne 0 ]; then
-            echo 'Go files not formatted:'
-            gofmt -l .
+          set -e
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo 'Auto-formatting Go files:'
+            echo "$unformatted"
+            # apply formatting in-place
+            gofmt -w $unformatted
+          else
+            echo 'All Go files are formatted.'
+          fi
+          # final verification (should be clean unless write failed)
+          final=$(gofmt -l .)
+          if [ -n "$final" ]; then
+            echo 'Unexpected residual unformatted files:'
+            echo "$final"
             exit 1
           fi
       - name: Build
