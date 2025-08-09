@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          check-latest: true
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Verify formatting
+        run: |
+          if [ "$(gofmt -l . | wc -l)" -ne 0 ]; then
+            echo 'Go files not formatted:'
+            gofmt -l .
+            exit 1
+          fi
+      - name: Build
+        run: go build ./...
+      - name: Unit tests
+        run: go test ./... -count=1
+      - name: Race detector (fast packages)
+        run: go test ./pkg/... -race -count=1
+
+  frontend:
+    name: Frontend (Node)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci || npm install
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Lint (if config present)
+        run: |
+          if [ -f eslint.config.js ] || [ -f .eslintrc.* ]; then
+            npx eslint 'src/**/*.{ts,tsx,js,jsx}' || exit 1
+          else
+            echo 'No ESLint config found, skipping.'
+          fi
+      - name: Build (ensure prod build works)
+        run: npm run build --if-present
+
+  metadata:
+    name: Repo Metadata & Plan Consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure development plan present
+        run: |
+          test -f DEVELOPMENT_PLAN.md || (echo 'DEVELOPMENT_PLAN.md missing' && exit 1)
+      - name: List key files
+        run: |
+          ls -1 .
+          ls -1 backend/internal || true
+
+  summary:
+    name: Summary
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, metadata]
+    steps:
+      - name: CI Result
+        run: echo "All jobs completed successfully."
