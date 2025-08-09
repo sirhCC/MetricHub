@@ -30,6 +30,10 @@ MetricHub is an open-source platform that ingests deployment + incident events, 
 ✅ Implemented:
 
 - Go API server (health, DORA metrics, classification)
+- Standardized JSON response envelopes (success + error)
+- Request ID + structured logging + per‑request timeout middleware
+- Lightweight SQL migrations + optional auto‑migrate
+- Postgres repository layer (deployments, incidents) with in‑memory fallback
 - React + Tailwind dashboard (dark mode, live polling)
 - Incident & deployment simulation (UI widget + buttons)
 - Real DORA calculation logic (frequency, lead time, MTTR, CFR)
@@ -37,7 +41,7 @@ MetricHub is an open-source platform that ingests deployment + incident events, 
 
 🚧 In Progress / Planned (short term):
 
-- Persistent storage (PostgreSQL + Redis cache)
+- Redis cache layer & query optimization
 - Plugin system skeleton & first collectors (GitHub / GitLab / Jenkins)
 - AuthN/Z (JWT + roles)
 - Time‑range filtering & historical trend API
@@ -131,6 +135,59 @@ Base path: `/api/v1`
 | `/plugins` | GET | Stub plugin listing |
 | `/plugins/:name/health` | GET | Stub plugin health |
 | `/webhook/:plugin` | POST | Generic plugin webhook receiver (stub) |
+### Standard Response Format
+
+All API responses are wrapped to provide consistency and traceability.
+
+Success:
+
+```json
+{
+	"data": { /* endpoint-specific payload */ },
+	"trace_id": "d3f5c8a2d0ad4e33"
+}
+```
+
+Error:
+
+```json
+{
+	"error": {
+		"code": "validation_error",
+		"message": "field 'service' is required",
+		"details": { "field": "service" },
+		"trace_id": "d3f5c8a2d0ad4e33"
+	}
+}
+```
+
+Error codes currently emitted:
+
+| Code | HTTP | Meaning |
+|------|------|---------|
+| validation_error | 400 | Invalid input / failed constraints |
+| unauthorized | 401 | (Reserved) auth required / invalid token |
+| forbidden | 403 | (Reserved) caller lacks permission |
+| not_found | 404 | Resource doesn't exist |
+| conflict | 409 | State conflict (duplicate, version mismatch) |
+| timeout | 504 | Server timed out processing request |
+| internal_error | 500 | Unclassified server error |
+
+Each request receives a request_id (trace_id) injected via middleware. Propagate this into logs / tracing for correlation.
+
+### Request Timeouts
+
+The server enforces a per‑request timeout (default 5s). Configure via environment variable:
+
+```
+REQUEST_TIMEOUT_SECONDS=8
+```
+
+Timed out requests return `504` with `code: "timeout"`.
+
+### Migrations & Persistence
+
+Set `AUTO_MIGRATE=true` (or corresponding config) to apply SQL files in `./migrations` on startup. When `DATABASE_URL` is unset the server transparently falls back to in‑memory slices (useful for quick local demos). Mixing modes is supported: you can start with memory then add a DB without code changes.
 
 Time range query support for `/metrics/dora` (`?days=7|30|90`) will expand as historical persistence arrives.
 
