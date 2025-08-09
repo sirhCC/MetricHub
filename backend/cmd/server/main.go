@@ -16,6 +16,17 @@ import (
 	"go.uber.org/zap"
 )
 
+// kvToZap converts a variadic list of key,value pairs into zap fields.
+func kvToZap(kv ...interface{}) []zap.Field {
+	fields := make([]zap.Field, 0, len(kv)/2)
+	for i := 0; i+1 < len(kv); i += 2 {
+		k, _ := kv[i].(string)
+		v := kv[i+1]
+		fields = append(fields, zap.Any(k, v))
+	}
+	return fields
+}
+
 func main() {
 	// Initialize logger
 	logger, err := zap.NewProduction()
@@ -42,6 +53,16 @@ func main() {
 		} else {
 			defer db.Close()
 			logger.Info("Database connection established")
+			// Run migrations if enabled
+			if cfg.AutoMigrate {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				if err := storage.ApplyMigrations(ctx, db.GetDB(), "./migrations", func(msg string, kv ...interface{}) { logger.Info(msg, kvToZap(kv...)...) }); err != nil {
+					logger.Error("migration failed", zap.Error(err))
+				} else {
+					logger.Info("database migrations applied")
+				}
+				cancel()
+			}
 		}
 	} else {
 		logger.Info("Running without database connection (development mode)")
