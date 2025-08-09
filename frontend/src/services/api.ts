@@ -1,4 +1,4 @@
-import type { DORAMetrics, MetricResponse, MetricData, PluginsResponse, HealthCheck, APIError } from '../types';
+import type { DORAMetrics, MetricResponse, MetricData, PluginsResponse, HealthCheck, APIError, SystemState, Incident, Deployment } from '../types';
 
 class APIService {
   private baseUrl: string;
@@ -81,11 +81,49 @@ class APIService {
   }
 
   // Webhook Methods
-  async sendWebhook(pluginName: string, payload: any): Promise<{ message: string; plugin: string; processed_at: string }> {
+  async sendWebhook(pluginName: string, payload: Record<string, unknown>): Promise<{ message: string; plugin: string; processed_at: string }> {
     return this.request(`/webhook/${pluginName}`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  }
+
+  // State snapshot (deployments + incidents)
+  async getState(): Promise<SystemState> {
+    return this.request<SystemState>('/state');
+  }
+
+  // Deployment simulation
+  async createDeployment(partial?: Partial<Deployment>): Promise<{ deployment: Deployment }> {
+    const payload: Partial<Deployment> = {
+      id: `dep-${Date.now()}`,
+      service: partial?.service || 'api',
+      environment: partial?.environment || 'prod',
+      status: partial?.status || 'success',
+      start_time: new Date().toISOString(),
+      commit_sha: Math.random().toString(16).substring(2, 9),
+      ...partial,
+    };
+    return this.request('/deployments', { method: 'POST', body: JSON.stringify(payload) });
+  }
+
+  // Incident simulation
+  async createIncident(partial?: Partial<Incident>): Promise<{ incident: Incident }> {
+    const payload: Partial<Incident> = {
+      id: `inc-${Date.now()}`,
+      title: partial?.title || 'Synthetic Incident',
+      description: partial?.description || 'Simulated incident for demo purposes',
+      service: partial?.service || 'api',
+      environment: partial?.environment || 'prod',
+      severity: partial?.severity || 'medium',
+      start_time: new Date().toISOString(),
+      ...partial,
+    };
+    return this.request('/incidents', { method: 'POST', body: JSON.stringify(payload) });
+  }
+
+  async resolveIncident(id: string): Promise<{ resolved_at: string }> {
+    return this.request(`/incidents/${id}/resolve`, { method: 'POST' });
   }
 }
 

@@ -8,11 +8,11 @@ export interface TimeRange {
 
 export interface DORAMetrics {
   deployment_frequency: number;
-  lead_time: string;
-  mttr: string;
-  change_failure_rate: number;
-  time_range: string;
-  last_updated: string;
+  lead_time: string;           // duration string from backend
+  mttr: string;                // duration string
+  change_failure_rate: number; // decimal (0.15 = 15%)
+  classification?: PerformanceClassification;
+  overall_performance?: PerformanceLevel;
 }
 
 export interface MetricData {
@@ -70,6 +70,38 @@ export interface PerformanceClassification {
   overall: PerformanceLevel;
 }
 
+// Deployment & Incident domain (subset of backend models for UI needs)
+export interface Deployment {
+  id: string;
+  service: string;
+  environment: string;
+  status: string;
+  start_time: string;
+  end_time?: string;
+  commit_sha?: string;
+  commit_time?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Incident {
+  id: string;
+  title: string;
+  description?: string;
+  service: string;
+  environment: string;
+  severity: string; // low|medium|high|critical
+  start_time: string;
+  resolved_time?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SystemState {
+  deployments: Deployment[];
+  incidents: Incident[];
+}
+
 // UI State Types
 export interface DashboardFilters {
   timeRange: 'last-7-days' | 'last-30-days' | 'last-90-days' | 'this-month' | 'last-month' | 'custom';
@@ -102,7 +134,7 @@ export interface APIError {
 export interface WebhookPayload {
   plugin: string;
   event_type: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   timestamp: string;
 }
 

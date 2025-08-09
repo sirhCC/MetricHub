@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Activity, TrendingUp, Clock, AlertTriangle, CheckCircle, XCircle, Settings, Zap, Target, BarChart3, Puzzle } from 'lucide-react';
+import { Activity, TrendingUp, Clock, AlertTriangle, CheckCircle, XCircle, Settings, Zap, Target, BarChart3, Puzzle, Shield } from 'lucide-react';
 import { useState } from 'react';
 import apiService from '../services/api';
 import MetricsChart from './MetricsChart';
@@ -8,6 +8,7 @@ import { Card } from './ui/Card';
 import { Stat } from './ui/Stat';
 import { DarkModeToggle } from './ui/Toggle';
 import { Skeleton } from './ui/Skeleton';
+import IncidentWidget from './IncidentWidget';
 
 function Dashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'plugins'>('overview');
@@ -101,7 +102,7 @@ function Dashboard() {
               </div>
               <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">Track your team's DORA metrics and accelerate software delivery with data-driven insights</p>
             </div>
-            <div className="mb-16">
+              <div className="mb-16">
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h3 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent mb-2">DORA Metrics</h3>
@@ -112,6 +113,16 @@ function Dashboard() {
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Live Data</span>
                 </div>
               </div>
+                {doraMetrics?.data?.overall_performance && (
+                  <div className="flex flex-wrap items-center gap-2 mb-6">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow">
+                      <Shield className="h-3.5 w-3.5 mr-1" /> Overall {capitalize(doraMetrics.data.overall_performance)} Performance
+                    </span>
+                    {doraMetrics.data.classification && Object.entries(doraMetrics.data.classification).filter(([k])=>k!=='overall').map(([k,v]) => (
+                      <span key={k} className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${badgeColor(v as string)}`}>{labelize(k)}: {capitalize(v as string)}</span>
+                    ))}
+                  </div>
+                )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {isLoading ? (
                   Array.from({ length: 4 }).map((_, i) => (
@@ -143,7 +154,7 @@ function Dashboard() {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
               <Card interactive className="p-8">
                 <div className="flex items-center space-x-3 mb-6">
                   <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl"><Activity className="h-6 w-6 text-white" /></div>
@@ -164,7 +175,7 @@ function Dashboard() {
                   ))}
                 </div>
               </Card>
-              <Card interactive className="p-8">
+              <Card interactive className="p-8 lg:col-span-1">
                 <div className="flex items-center space-x-3 mb-6">
                   <div className="p-3 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-xl"><CheckCircle className="h-6 w-6 text-white" /></div>
                   <h4 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">System Status</h4>
@@ -189,6 +200,7 @@ function Dashboard() {
                   ))}
                 </div>
               </Card>
+              <IncidentWidget className="lg:col-span-1" />
             </div>
             <div className="text-center">
               <div className="relative group inline-block">
@@ -237,3 +249,16 @@ function Dashboard() {
 }
 
 export default Dashboard;
+
+// Helper presentation utilities
+function capitalize(v: string) { return v.charAt(0).toUpperCase() + v.slice(1); }
+function labelize(key: string) { return key.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()); }
+function badgeColor(level: string) {
+  switch(level) {
+    case 'elite': return 'bg-emerald-600 text-white';
+    case 'high': return 'bg-blue-600 text-white';
+    case 'medium': return 'bg-amber-500 text-gray-900';
+    case 'low': return 'bg-red-600 text-white';
+    default: return 'bg-gray-400 text-gray-900';
+  }
+}
