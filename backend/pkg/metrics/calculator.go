@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -177,7 +176,6 @@ func (c *DORACalculator) assessDataQuality(deployments []Deployment, incidents [
 	}
 
 	deploymentsPerDay := float64(deploymentCount) / days
-	incidentsPerDay := float64(incidentCount) / days
 
 	// High quality: Regular deployments and incident data
 	if deploymentsPerDay >= 0.5 && incidentCount > 0 {
