@@ -18,11 +18,24 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+      - name: Show backend directory contents
+        run: |
+          pwd
+          ls -al
+          echo '--- go.mod ---'
+          sed -n '1,120p' go.mod || true
+          echo '--- go.sum (first 40 lines) ---'
+          sed -n '1,40p' go.sum || true
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
           check-latest: true
+      - name: Ensure module deps (tidy)
+        run: |
+          go mod tidy
+          echo 'Post-tidy diff (if any):'
+          git --no-pager diff --name-only || true
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
