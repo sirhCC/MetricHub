@@ -1,285 +1,217 @@
+git clone https://github.com/sirhCC/MetricHub.git
+docker-compose -f docker-compose.dev.yml up
+go mod tidy
+go run cmd/server/main.go
+npm run dev
+go test ./...
 # MetricHub
 
-> **Universal DevOps Metrics Collector** - Aggregate DORA metrics from any tool into unified dashboards with community benchmarking.
+> Universal DevOps Metrics Collector – Unified DORA & reliability metrics, plugin ecosystem, and (upcoming) anonymous benchmarking.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://golang.org/)
-[![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react)](https://reactjs.org/)
+[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://go.dev/)
+[![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Status](https://img.shields.io/badge/Stage-Pre_Alpha-orange)](./DEVELOPMENT_PLAN.md)
 
-## 🎯 What is MetricHub?
+## Overview
 
-MetricHub is an open-source platform that collects DevOps metrics from multiple tools and presents them in unified dashboards. It calculates **DORA metrics** (Deployment Frequency, Lead Time for Changes, Mean Time to Recovery, Change Failure Rate) and provides **anonymous community benchmarking**.
+MetricHub is an open-source platform that ingests deployment + incident events, calculates the **four DORA metrics**, classifies performance (elite/high/medium/low), and presents them in a modern dashboard. The current build uses **in‑memory development storage** (perfect for fast iteration) with simulation endpoints so you can explore the experience before real integrations & persistence land.
 
-### Key Features
+| Metric | What it Measures | Example Output | Classification |
+|--------|------------------|----------------|----------------|
+| Deployment Frequency | Deploys per day (time‑window normalized) | 3.2 | elite/high/... |
+| Lead Time for Changes | Commit → prod duration (avg) | 2h13m | high |
+| MTTR | Incident start → resolve (avg) | 47m | elite |
+| Change Failure Rate | Failed / total deployments | 11% | medium |
 
-- 🔌 **Universal Integrations** - Works with GitHub Actions, Jenkins, GitLab, Azure DevOps, and more
-- 📊 **DORA Metrics** - Accurate calculation of industry-standard DevOps performance metrics
-- 🏆 **Community Benchmarking** - Compare your team's performance anonymously
-- 🚀 **Easy Deployment** - Single binary, Docker containers, or Kubernetes
-- 🔒 **Privacy-First** - Your data stays yours, only anonymized benchmarks are shared
-- 📈 **Beautiful Dashboards** - Real-time visualizations and historical trends
+## Current Status (Pre‑Alpha)
 
-## 🏗️ Architecture
+✅ Implemented:
 
-```text
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Data Sources  │    │   MetricHub     │    │   Dashboards    │
-│                 │    │     Core        │    │                 │
-│ • GitHub Actions│◄──►│                 │◄──►│ • Web Dashboard │
-│ • Jenkins       │    │ • Collectors    │    │ • API Clients   │
-│ • GitLab CI     │    │ • Calculators   │    │ • Mobile Apps   │
-│ • Azure DevOps  │    │ • Storage       │    │ • Integrations  │
-│ • Custom APIs   │    │ • Benchmarking  │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```text
+- Go API server (health, DORA metrics, classification)
+- React + Tailwind dashboard (dark mode, live polling)
+- Incident & deployment simulation (UI widget + buttons)
+- Real DORA calculation logic (frequency, lead time, MTTR, CFR)
+- Performance classification + overall badge
 
-## 🚀 Quick Start
+🚧 In Progress / Planned (short term):
 
-### Current Development Status
+- Persistent storage (PostgreSQL + Redis cache)
+- Plugin system skeleton & first collectors (GitHub / GitLab / Jenkins)
+- AuthN/Z (JWT + roles)
+- Time‑range filtering & historical trend API
 
-✅ **Working Features:**
-- Complete React TypeScript frontend with beautiful dashboard
-- Full Go backend API with DORA metrics endpoints
-- Real-time DORA metrics visualization (Deployment Frequency, Lead Time, MTTR, Change Failure Rate)
-- Plugin management interface
-- Health monitoring and system status
-- CORS-enabled API for frontend integration
+🛣️ Mid-Term:
 
-🚧 **In Development:**
-- Database integration (PostgreSQL + Redis)
-- Real data source connectors (GitHub, GitLab, Jenkins)
-- Community benchmarking features
-- Authentication system
+- Anonymous benchmarking exchange
+- Streaming ingestion (NATS) & WebSocket updates
+- Advanced analytics (service breakdown, SLO overlays)
 
-### Prerequisites
+## Quick Start
 
-- **Docker & Docker Compose** (recommended)
-- **OR** Go 1.21+ and Node.js 18+ for local development
+### 1. Fast Dev (Recommended for exploring)
 
-### 1. Using Docker (Recommended)
-
-```bash
-# Clone the repository
-git clone https://github.com/sirhCC/MetricHub.git
-cd MetricHub
-
-# Start all services
-docker-compose -f docker-compose.dev.yml up
-
-# Access the dashboard
-open http://localhost:3000
-```
-
-### 2. Local Development
-
-Quick one-liner (Windows PowerShell):
+Windows PowerShell (uses orchestration script):
 
 ```powershell
 npm run dev
 ```
 
-Cross-platform (macOS/Linux):
+macOS / Linux:
 
 ```bash
 ./scripts/start-dev.sh
 ```
 
-This launches the Go backend (port 8080) and Vite frontend (port 5173) without Docker. Frontend points to the backend via `VITE_API_URL`.
+This launches:
 
-#### Backend (Go Server)
+- Backend API: <http://localhost:8080>
+- Frontend UI: <http://localhost:5173>
+
+### 2. Manual (backend & frontend separately)
+
+Backend:
 
 ```bash
-# Navigate to backend directory
 cd backend
-
-# Install Go dependencies
-go mod tidy
-
-# Start the Go server (runs on port 8080)
-go run cmd/server/main.go
+go run ./cmd/server
 ```
 
-#### Frontend (React Dashboard)
+Frontend:
 
 ```bash
-# Navigate to frontend directory  
 cd frontend
-
-# Install dependencies
 npm install
-
-# Start development server (runs on port 5173)
 npm run dev
 ```
 
-#### Access the Application
+### 3. (Optional) Docker Compose (coming soon)
 
-- **Frontend Dashboard**: <http://localhost:5173>
-- **Backend API**: <http://localhost:8080>
-- **Health Check**: <http://localhost:8080/api/v1/health>
-- **DORA Metrics API**: <http://localhost:8080/api/v1/metrics/dora>
+Dev compose file exists; integration will follow once persistence is wired.
 
-#### Available API Endpoints
+## Simulating Data (In-Memory Mode)
 
-```bash
-# Health & Status
-GET /api/v1/health                           # System health check
-GET /api/v1/health/database                  # Database status
-GET /api/v1/health/redis                     # Redis status
+From the dashboard Overview tab:
 
-# DORA Metrics (with mock data)
-GET /api/v1/metrics/dora                     # All DORA metrics
-GET /api/v1/metrics/dora/deployment-frequency # Deployment frequency
-GET /api/v1/metrics/dora/lead-time           # Lead time for changes
-GET /api/v1/metrics/dora/mttr                # Mean time to recovery
-GET /api/v1/metrics/dora/change-failure-rate # Change failure rate
+- "Simulate Incident" → adds active incident
+- "Resolve" → closes incident (affects MTTR)
+- "Simulate Deployment" → adds success/failure (affects Frequency & CFR)
 
-# Plugin Management
-GET /api/v1/plugins                          # List available plugins
-GET /api/v1/plugins/:name/health             # Plugin health status
-
-# Webhooks
-POST /api/v1/webhook/:plugin                 # Plugin-specific webhooks
-```
-
-## 📊 DORA Metrics
-
-MetricHub calculates the four key DORA metrics:
-
-| Metric | Description | Elite Performance |
-|--------|-------------|-------------------|
-| **Deployment Frequency** | How often code is deployed to production | Multiple times per day |
-| **Lead Time for Changes** | Time from commit to production | Less than 1 day |
-| **Mean Time to Recovery** | Time to recover from incidents | Less than 1 hour |
-| **Change Failure Rate** | Percentage of deployments causing failures | 0-15% |
-
-## 🔌 Planned Integrations
-
-> **Note**: MetricHub is currently in development. The integrations below are planned for future releases.
-
-### CI/CD Platforms
-
-- 🚧 GitHub Actions (planned)
-- 🚧 GitLab CI/CD (planned)
-- 🚧 Jenkins (planned)
-- 🚧 Azure DevOps (planned)
-- 🚧 CircleCI (planned)
-- 🚧 Tekton (planned)
-
-### Incident Management
-
-- 🚧 PagerDuty (planned)
-- 🚧 Opsgenie (planned)
-- 🚧 Incident.io (planned)
-
-### Monitoring
-
-- 🚧 Prometheus (planned)
-- 🚧 Grafana (planned)
-- 🚧 DataDog (planned)
-
-### Version Control
-
-- 🚧 GitHub (planned)
-- 🚧 GitLab (planned)
-- 🚧 Bitbucket (planned)
-- 🚧 Azure Repos (planned)
-
-## 🛠️ Development
-
-### Project Structure
-
-```
-MetricHub/
-├── backend/                 # Go backend
-│   ├── cmd/                # Application entry points
-│   ├── internal/           # Private application code
-│   │   ├── api/           # REST API handlers
-│   │   ├── collector/     # Metrics collection engine
-│   │   ├── plugins/       # Plugin system
-│   │   ├── storage/       # Database layer
-│   │   └── config/        # Configuration
-│   └── pkg/               # Public packages
-├── frontend/              # React TypeScript frontend
-│   ├── src/
-│   │   ├── components/    # UI components
-│   │   ├── pages/        # Route components
-│   │   ├── hooks/        # Custom hooks
-│   │   └── services/     # API clients
-├── plugins/              # External plugins
-├── docs/                # Documentation
-└── deployments/         # Deployment configs
-```
-
-### Technology Stack
-
-- **Backend**: Go 1.21, Gin, PostgreSQL, Redis, NATS
-- **Frontend**: React 18, TypeScript, Vite, TailwindCSS
-- **Testing**: Go testing, React Testing Library, Playwright
-- **Observability**: OpenTelemetry, Prometheus, Jaeger
-- **Deployment**: Docker, Kubernetes, Helm
-
-### Running Tests
+You can also call endpoints directly (examples via curl):
 
 ```bash
-# Backend tests
-cd backend
-go test ./...
+# Create deployment
+curl -X POST localhost:8080/api/v1/deployments -H "Content-Type: application/json" -d '{"id":"dep-1","service":"api","environment":"prod","status":"success"}'
 
-# Frontend tests
-cd frontend
-npm test
+# Create incident
+curl -X POST localhost:8080/api/v1/incidents -H "Content-Type: application/json" -d '{"id":"inc-1","title":"Synthetic Outage","service":"api","environment":"prod","severity":"high"}'
 
-# E2E tests
-npm run test:e2e
+# Resolve incident
+curl -X POST localhost:8080/api/v1/incidents/inc-1/resolve
+
+# View current state
+curl localhost:8080/api/v1/state | jq
 ```
 
-## 📚 Documentation
+## API Surface (Current)
 
-- [📖 User Guide](docs/user-guide.md)
-- [🔧 Configuration Reference](docs/configuration.md)
-- [🔌 Plugin Development](docs/plugin-development.md)
-- [🏗️ Architecture Guide](docs/architecture.md)
-- [🤝 Contributing Guide](CONTRIBUTING.md)
+Base path: `/api/v1`
 
-## 🤝 Contributing
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | System health summary |
+| `/health/database` | GET | (Stub) database health |
+| `/health/redis` | GET | (Stub) redis health |
+| `/metrics/dora` | GET | All DORA metrics + classification |
+| `/deployments` | POST | Ingest (simulate) a deployment |
+| `/incidents` | POST | Ingest (simulate) an incident |
+| `/incidents/:id/resolve` | POST | Resolve an incident |
+| `/state` | GET | Snapshot of in‑memory deployments & incidents |
+| `/plugins` | GET | Stub plugin listing |
+| `/plugins/:name/health` | GET | Stub plugin health |
+| `/webhook/:plugin` | POST | Generic plugin webhook receiver (stub) |
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+Time range query support for `/metrics/dora` (`?days=7|30|90`) will expand as historical persistence arrives.
 
-### Quick Contribution Steps
+## Architecture Principles
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for your changes
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+Clean layered approach influenced by Hexagonal + DDD:
 
-## 📈 Roadmap
+- Domain package (`pkg/metrics`) holds core models & calculations
+- API layer (Gin) performs orchestration & response shaping
+- In-memory slices currently stand in for repository interfaces
+- Frontend consumes typed responses via a small service layer (React Query for caching/polling)
 
-- [ ] **Q1 2025**: Core DORA metrics with 5+ integrations
-- [ ] **Q2 2025**: Community benchmarking and mobile app
-- [ ] **Q3 2025**: Advanced analytics and ML insights
-- [ ] **Q4 2025**: Enterprise features and marketplace
+Planned evolutions:
 
-## 🎖️ Community
+- Replace slices with repository interfaces (Postgres + Redis caching)
+- Event-style ingestion (NATS) feeding calculator pipelines
+- Plugin runtime applying rate limiting, retries, circuit breakers
 
-- 💬 [Discussions](https://github.com/sirhCC/MetricHub/discussions) - Ask questions and share ideas
-- 🐛 [Issues](https://github.com/sirhCC/MetricHub/issues) - Report bugs and request features
-- 📧 [Newsletter](https://metrichub.dev/newsletter) - Stay updated with releases
+## Project Structure (Active Portions)
 
-## 📄 License
+```text
+backend/
+	cmd/server        # Entry point
+	internal/api      # Routers & handlers
+	internal/storage  # (Stubs) future persistence
+	pkg/metrics       # Domain models & calculator
+frontend/
+	src/components    # Dashboard + Incident widget
+	src/services      # API client
+	src/types         # Shared TS interfaces
+scripts/            # Dev orchestration scripts
+```
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+## Development Workflow
 
-## 🙏 Acknowledgments
+Run locally, simulate data, iterate quickly before persistence adds complexity.
 
-- [DORA Research Program](https://dora.dev/) for metrics definitions
-- [OpenTelemetry](https://opentelemetry.io/) for observability standards
-- All the amazing open-source projects that make this possible
+Tests (initial calculator tests exist; broaden soon):
+
+```bash
+cd backend && go test ./...
+```
+
+Frontend tests placeholder (enable after component set stabilizes).
+
+## Roadmap (Snapshot)
+
+- [x] Core DORA calculator
+- [x] Performance classification (overall + per metric)
+- [x] Incident + deployment ingestion (in-memory)
+- [x] Interactive dashboard + dark mode
+- [ ] Persistence layer (Postgres + migrations)
+- [ ] Plugin baseline (GitHub → deployments, incidents)
+- [ ] Auth (JWT + RBAC)
+- [ ] Historical trend endpoints & charts
+- [ ] Benchmark exchange (anonymous percentile data)
+- [ ] Observability: traces + metrics + structured logs
+- [ ] Export / CSV / API tokens
+
+Extended multi-phase plan lives in `DEVELOPMENT_PLAN.md`.
+
+## Contributing
+
+Pre‑alpha: architecture still evolving. Early feedback & lightweight PRs welcome.
+
+1. Fork & branch (`feat/xyz`)
+2. Keep changes focused (small PRs merge faster)
+3. Add / update tests where logic changes
+4. Submit PR & include context / rationale
+
+Roadmap issues will be labeled as they open—watch the repo to get notified.
+
+## License
+
+Apache 2.0 – see [LICENSE](LICENSE).
+
+## Acknowledgements
+
+- DORA Research (<https://dora.dev>)
+- OpenTelemetry & wider CNCF ecosystem
+- All upstream OSS dependencies
 
 ---
-
-**⭐ Star this repository if you find it useful!**
+If this direction resonates, ⭐ star & follow along — more coming soon.
