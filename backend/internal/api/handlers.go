@@ -3,8 +3,10 @@ package api
 import (
 	"net/http"
 	"time"
+	"sort"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirhCC/MetricHub/pkg/metrics"
 	"go.uber.org/zap"
 )
 
@@ -50,71 +52,49 @@ func (r *Router) redisHealth(c *gin.Context) {
 
 // DORA Metrics handlers
 func (r *Router) getDoraMetrics(c *gin.Context) {
-	// TODO: Implement actual DORA metrics calculation from database
-	response := gin.H{
+	tr := r.parseTimeRange(c)
+	result, err := r.calculator.CalculateAll(r.deployments, r.incidents, tr)
+	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error":"calculation failed"}); return }
+	classification := r.calculator.ClassifyPerformance(result)
+	overall := r.calculator.GetOverallPerformance(classification)
+	c.JSON(http.StatusOK, gin.H{
 		"data": gin.H{
-			"deployment_frequency":  2.3,
-			"lead_time":            "4h 32m",
-			"mttr":                 "1h 15m",
-			"change_failure_rate":  0.089,
+			"deployment_frequency": result.DeploymentFrequency,
+			"lead_time": result.LeadTime.String(),
+			"mttr": result.MTTR.String(),
+			"change_failure_rate": result.ChangeFailureRate,
+			"classification": classification,
+			"overall_performance": overall,
 		},
 		"metadata": gin.H{
-			"time_range":    "last_30_days",
-			"last_updated":  time.Now().UTC(),
-			"data_quality":  "high",
+			"time_range": gin.H{"start": tr.Start, "end": tr.End},
+			"last_updated": time.Now().UTC(),
+			"data_quality": result.DataQuality,
+			"deployments_count": len(r.deployments),
+			"incidents_count": len(r.incidents),
 		},
-	}
-
-	r.logger.Info("DORA metrics requested")
-	c.JSON(http.StatusOK, response)
+	})
 }
 
 func (r *Router) getDeploymentFrequency(c *gin.Context) {
-	// TODO: Calculate actual deployment frequency from database
-	response := gin.H{
-		"value": 2.3,
-		"unit":  "per_day",
-		"trend": "increasing",
-		"historical_data": generateMockHistoricalData("deployment_frequency"),
-	}
-
-	c.JSON(http.StatusOK, response)
+	tr := r.parseTimeRange(c)
+	freq := r.calculator.CalculateDeploymentFrequency(r.deployments, tr)
+	c.JSON(http.StatusOK, gin.H{"value": freq, "unit":"per_day", "time_range": tr})
 }
 
 func (r *Router) getLeadTime(c *gin.Context) {
-	// TODO: Calculate actual lead time from database
-	response := gin.H{
-		"value": "4h 32m",
-		"unit":  "hours",
-		"trend": "decreasing",
-		"historical_data": generateMockHistoricalData("lead_time"),
-	}
-
-	c.JSON(http.StatusOK, response)
+	lt := r.calculator.CalculateLeadTime(r.deployments)
+	c.JSON(http.StatusOK, gin.H{"value": lt.String(), "unit":"duration"})
 }
 
 func (r *Router) getMTTR(c *gin.Context) {
-	// TODO: Calculate actual MTTR from database
-	response := gin.H{
-		"value": "1h 15m",
-		"unit":  "hours",
-		"trend": "stable",
-		"historical_data": generateMockHistoricalData("mttr"),
-	}
-
-	c.JSON(http.StatusOK, response)
+	mttr := r.calculator.CalculateMTTR(r.incidents)
+	c.JSON(http.StatusOK, gin.H{"value": mttr.String(), "unit":"duration"})
 }
 
 func (r *Router) getChangeFailureRate(c *gin.Context) {
-	// TODO: Calculate actual change failure rate from database
-	response := gin.H{
-		"value": 0.089,
-		"unit":  "percentage",
-		"trend": "decreasing",
-		"historical_data": generateMockHistoricalData("change_failure_rate"),
-	}
-
-	c.JSON(http.StatusOK, response)
+	cfr := r.calculator.CalculateChangeFailureRate(r.deployments, r.incidents)
+	c.JSON(http.StatusOK, gin.H{"value": cfr, "unit":"ratio"})
 }
 
 // Plugin handlers
@@ -226,4 +206,91 @@ func generateMockHistoricalData(metricType string) []gin.H {
 	}
 
 	return data
+}
+
+// Ingestion endpoints (development in-memory only)
+type deploymentRequest struct {
+	ID        string     `json:"id"`
+	StartedAt *time.Time `json:"started_at"`
+	EndedAt   *time.Time `json:"ended_at"`
+	Status    string     `json:"status"`
+	CommitSHA string     `json:"commit_sha"`
+	Service   string     `json:"service"`
+	Environment string   `json:"environment"`
+}
+
+func (r *Router) createDeployment(c *gin.Context) {
+	var req deploymentRequest
+	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error":"invalid json"}); return }
+	start := time.Now()
+	if req.StartedAt != nil { start = *req.StartedAt }
+	status := metrics.DeploymentStatus(req.Status)
+	dep := metrics.Deployment{
+		ID: req.ID,
+		Service: req.Service,
+		Environment: req.Environment,
+		StartTime: start,
+		EndTime: req.EndedAt,
+		Status: status,
+		CommitSHA: req.CommitSHA,
+		CommitTime: start, // placeholder
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	r.deployments = append(r.deployments, dep)
+	c.JSON(http.StatusCreated, gin.H{"deployment": dep})
+}
+
+type incidentRequest struct {
+	ID           string     `json:"id"`
+	StartedAt    *time.Time `json:"started_at"`
+	ResolvedAt   *time.Time `json:"resolved_at"`
+	Severity     string     `json:"severity"`
+	Title        string     `json:"title"`
+	Description  string     `json:"description"`
+	Service      string     `json:"service"`
+	Environment  string     `json:"environment"`
+}
+
+func (r *Router) createIncident(c *gin.Context) {
+	var req incidentRequest
+	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error":"invalid json"}); return }
+	start := time.Now()
+	if req.StartedAt != nil { start = *req.StartedAt }
+	severity := metrics.IncidentSeverity(req.Severity)
+	inc := metrics.Incident{
+		ID: req.ID,
+		Title: req.Title,
+		Description: req.Description,
+		Service: req.Service,
+		Environment: req.Environment,
+		Severity: severity,
+		StartTime: start,
+		ResolvedTime: req.ResolvedAt,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	r.incidents = append(r.incidents, inc)
+	c.JSON(http.StatusCreated, gin.H{"incident": inc})
+}
+
+func (r *Router) resolveIncident(c *gin.Context) {
+	id := c.Param("id")
+	now := time.Now()
+	for i := range r.incidents {
+		if r.incidents[i].ID == id {
+			if r.incidents[i].ResolvedTime != nil { c.JSON(http.StatusBadRequest, gin.H{"error":"already resolved"}); return }
+			r.incidents[i].ResolvedTime = &now
+			r.incidents[i].UpdatedAt = time.Now()
+			c.JSON(http.StatusOK, gin.H{"resolved_at": now}); return
+		}
+	}
+	c.JSON(http.StatusNotFound, gin.H{"error":"not found"})
+}
+
+func (r *Router) listState(c *gin.Context) {
+	// stable ordering
+	sort.Slice(r.deployments, func(i,j int) bool { return r.deployments[i].StartTime.Before(r.deployments[j].StartTime) })
+	sort.Slice(r.incidents, func(i,j int) bool { return r.incidents[i].StartTime.Before(r.incidents[j].StartTime) })
+	c.JSON(http.StatusOK, gin.H{"deployments": r.deployments, "incidents": r.incidents})
 }

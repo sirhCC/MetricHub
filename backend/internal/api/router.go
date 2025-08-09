@@ -2,10 +2,13 @@ package api
 
 import (
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sirhCC/MetricHub/internal/storage"
+	"github.com/sirhCC/MetricHub/pkg/metrics"
 	"go.uber.org/zap"
 )
 
@@ -14,6 +17,10 @@ type Router struct {
 	logger *zap.Logger
 	db     *storage.Database
 	redis  *storage.Redis
+	// In-memory development stores
+	deployments []metrics.Deployment
+	incidents   []metrics.Incident
+	calculator  *metrics.DORACalculator
 }
 
 // NewRouter creates a new API router with all dependencies
@@ -22,6 +29,7 @@ func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis) *
 		logger: logger,
 		db:     db,
 		redis:  redis,
+		calculator: metrics.NewDORACalculator(),
 	}
 
 	// Create Gin router
@@ -46,14 +54,14 @@ func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis) *
 		api.GET("/health/database", r.databaseHealth)
 		api.GET("/health/redis", r.redisHealth)
 
-		// DORA metrics endpoints (placeholder for now)
-		metrics := api.Group("/metrics")
+		// DORA metrics endpoints
+		metricsGroup := api.Group("/metrics")
 		{
-			metrics.GET("/dora", r.getDoraMetrics)
-			metrics.GET("/dora/deployment-frequency", r.getDeploymentFrequency)
-			metrics.GET("/dora/lead-time", r.getLeadTime)
-			metrics.GET("/dora/mttr", r.getMTTR)
-			metrics.GET("/dora/change-failure-rate", r.getChangeFailureRate)
+			metricsGroup.GET("/dora", r.getDoraMetrics)
+			metricsGroup.GET("/dora/deployment-frequency", r.getDeploymentFrequency)
+			metricsGroup.GET("/dora/lead-time", r.getLeadTime)
+			metricsGroup.GET("/dora/mttr", r.getMTTR)
+			metricsGroup.GET("/dora/change-failure-rate", r.getChangeFailureRate)
 		}
 
 		// Plugin endpoints (placeholder for now)
@@ -63,15 +71,21 @@ func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis) *
 			plugins.GET("/:name/health", r.pluginHealth)
 		}
 
-		// Webhook endpoints (placeholder for now)
-		api.POST("/webhook/:plugin", r.handleWebhook)
+	// Webhook endpoints (placeholder for now)
+	api.POST("/webhook/:plugin", r.handleWebhook)
+
+	// Ingestion (in-memory dev only)
+	api.POST("/deployments", r.createDeployment)
+	api.POST("/incidents", r.createIncident)
+	api.POST("/incidents/:id/resolve", r.resolveIncident)
+	api.GET("/state", r.listState)
 	}
 
 	// Serve static files and handle SPA routing
 	router.Static("/static", "./web/static")
 	router.NoRoute(func(c *gin.Context) {
 		// For SPA routing, serve index.html for any non-API routes
-		if c.Request.URL.Path[:4] != "/api" {
+		if len(c.Request.URL.Path) >= 4 && c.Request.URL.Path[:4] != "/api" {
 			c.File("./web/index.html")
 		} else {
 			c.JSON(http.StatusNotFound, gin.H{"error": "endpoint not found"})
@@ -94,4 +108,15 @@ func (r *Router) loggingMiddleware() gin.HandlerFunc {
 		)
 		return ""
 	})
+}
+
+// parseTimeRange parses an optional ?days=N parameter (default 30, max 365)
+func (r *Router) parseTimeRange(c *gin.Context) metrics.TimeRange {
+	days := 30
+	if v := c.Query("days"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 365 { days = n }
+	}
+	end := time.Now()
+	start := end.AddDate(0,0,-days+1)
+	return metrics.TimeRange{Start: start, End: end}
 }
