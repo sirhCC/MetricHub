@@ -22,7 +22,7 @@ MetricHub is an open-source platform that collects DevOps metrics from multiple 
 
 ## 🏗️ Architecture
 
-```
+```text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Data Sources  │    │   MetricHub     │    │   Dashboards    │
 │                 │    │     Core        │    │                 │
@@ -32,7 +32,7 @@ MetricHub is an open-source platform that collects DevOps metrics from multiple 
 │ • Azure DevOps  │    │ • Storage       │    │ • Integrations  │
 │ • Custom APIs   │    │ • Benchmarking  │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+```text
 
 ## 🚀 Quick Start
 
@@ -72,6 +72,20 @@ open http://localhost:3000
 ```
 
 ### 2. Local Development
+
+Quick one-liner (Windows PowerShell):
+
+```powershell
+npm run dev
+```
+
+Cross-platform (macOS/Linux):
+
+```bash
+./scripts/start-dev.sh
+```
+
+This launches the Go backend (port 8080) and Vite frontend (port 5173) without Docker. Frontend points to the backend via `VITE_API_URL`.
 
 #### Backend (Go Server)
 
