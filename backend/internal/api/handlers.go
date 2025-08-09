@@ -197,10 +197,8 @@ func (r *Router) handleWebhook(c *gin.Context) {
 
 	var payload map[string]interface{}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		r.logger.Error("Failed to parse webhook payload",
-			zap.String("plugin", pluginName),
-			zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
+		r.logger.Error("Failed to parse webhook payload", zap.String("plugin", pluginName), zap.Error(err))
+		respondError(c, ErrValidation, "invalid json payload", nil)
 		return
 	}
 
@@ -212,11 +210,8 @@ func (r *Router) handleWebhook(c *gin.Context) {
 		"processed":    true,
 	}
 
-	r.logger.Info("Webhook processed",
-		zap.String("plugin", pluginName),
-		zap.Any("payload", payload))
-
-	c.JSON(http.StatusOK, response)
+	r.logger.Info("Webhook processed", zap.String("plugin", pluginName), zap.Any("payload", payload))
+	respondOK(c, response)
 }
 
 // Helper function to generate mock historical data
@@ -337,28 +332,28 @@ func (r *Router) resolveIncident(c *gin.Context) {
 func (r *Router) listState(c *gin.Context) {
 	tr := r.parseTimeRange(c)
 	if r.deploymentRepo != nil && r.incidentRepo != nil {
-		deps, err := r.deploymentRepo.ListRange(c.Request.Context(), tr.Start, tr.End); if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load deployments"}); return }
-		incs, err := r.incidentRepo.ListRange(c.Request.Context(), tr.Start, tr.End); if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load incidents"}); return }
+		deps, err := r.deploymentRepo.ListRange(c.Request.Context(), tr.Start, tr.End); if err != nil { respondError(c, ErrInternal, "failed to load deployments", nil); return }
+		incs, err := r.incidentRepo.ListRange(c.Request.Context(), tr.Start, tr.End); if err != nil { respondError(c, ErrInternal, "failed to load incidents", nil); return }
 		sort.Slice(deps, func(i, j int) bool { return deps[i].StartTime.Before(deps[j].StartTime) })
 		sort.Slice(incs, func(i, j int) bool { return incs[i].StartTime.Before(incs[j].StartTime) })
-		c.JSON(http.StatusOK, gin.H{"deployments": deps, "incidents": incs}); return
+		respondOK(c, gin.H{"deployments": deps, "incidents": incs}); return
 	}
 	r.mu.RLock(); deps := append([]metrics.Deployment(nil), r.deployments...); incs := append([]metrics.Incident(nil), r.incidents...); r.mu.RUnlock()
 	sort.Slice(deps, func(i, j int) bool { return deps[i].StartTime.Before(deps[j].StartTime) })
 	sort.Slice(incs, func(i, j int) bool { return incs[i].StartTime.Before(incs[j].StartTime) })
-	c.JSON(http.StatusOK, gin.H{"deployments": deps, "incidents": incs})
+	respondOK(c, gin.H{"deployments": deps, "incidents": incs})
 }
 
 // listDeployments returns deployments only
 func (r *Router) listDeployments(c *gin.Context) {
 	tr := r.parseTimeRange(c)
-	if r.deploymentRepo != nil { deps, err := r.deploymentRepo.ListRange(c.Request.Context(), tr.Start, tr.End); if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load deployments"}); return }; sort.Slice(deps, func(i, j int) bool { return deps[i].StartTime.Before(deps[j].StartTime) }); c.JSON(http.StatusOK, gin.H{"deployments": deps, "count": len(deps)}); return }
-	r.mu.RLock(); deps := append([]metrics.Deployment(nil), r.deployments...); r.mu.RUnlock(); sort.Slice(deps, func(i, j int) bool { return deps[i].StartTime.Before(deps[j].StartTime) }); c.JSON(http.StatusOK, gin.H{"deployments": deps, "count": len(deps)})
+	if r.deploymentRepo != nil { deps, err := r.deploymentRepo.ListRange(c.Request.Context(), tr.Start, tr.End); if err != nil { respondError(c, ErrInternal, "failed to load deployments", nil); return }; sort.Slice(deps, func(i, j int) bool { return deps[i].StartTime.Before(deps[j].StartTime) }); respondOK(c, gin.H{"deployments": deps, "count": len(deps)}); return }
+	r.mu.RLock(); deps := append([]metrics.Deployment(nil), r.deployments...); r.mu.RUnlock(); sort.Slice(deps, func(i, j int) bool { return deps[i].StartTime.Before(deps[j].StartTime) }); respondOK(c, gin.H{"deployments": deps, "count": len(deps)})
 }
 
 // listIncidents returns incidents only
 func (r *Router) listIncidents(c *gin.Context) {
 	tr := r.parseTimeRange(c)
-	if r.incidentRepo != nil { incs, err := r.incidentRepo.ListRange(c.Request.Context(), tr.Start, tr.End); if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load incidents"}); return }; sort.Slice(incs, func(i, j int) bool { return incs[i].StartTime.Before(incs[j].StartTime) }); c.JSON(http.StatusOK, gin.H{"incidents": incs, "count": len(incs)}); return }
-	r.mu.RLock(); incs := append([]metrics.Incident(nil), r.incidents...); r.mu.RUnlock(); sort.Slice(incs, func(i, j int) bool { return incs[i].StartTime.Before(incs[j].StartTime) }); c.JSON(http.StatusOK, gin.H{"incidents": incs, "count": len(incs)})
+	if r.incidentRepo != nil { incs, err := r.incidentRepo.ListRange(c.Request.Context(), tr.Start, tr.End); if err != nil { respondError(c, ErrInternal, "failed to load incidents", nil); return }; sort.Slice(incs, func(i, j int) bool { return incs[i].StartTime.Before(incs[j].StartTime) }); respondOK(c, gin.H{"incidents": incs, "count": len(incs)}); return }
+	r.mu.RLock(); incs := append([]metrics.Incident(nil), r.incidents...); r.mu.RUnlock(); sort.Slice(incs, func(i, j int) bool { return incs[i].StartTime.Before(incs[j].StartTime) }); respondOK(c, gin.H{"incidents": incs, "count": len(incs)})
 }
