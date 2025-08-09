@@ -13,6 +13,7 @@ type Config struct {
 	Host        string
 	Port        int
 	Environment string
+	RequestTimeoutSeconds int
 
 	// Database configuration
 	DatabaseURL string
@@ -38,6 +39,7 @@ func Load() (*Config, error) {
 		Host:        getEnvWithDefault("API_HOST", "0.0.0.0"),
 		Port:        getEnvAsIntWithDefault("API_PORT", 8080),
 		Environment: getEnvWithDefault("ENVIRONMENT", "development"),
+		RequestTimeoutSeconds: getEnvAsIntWithDefault("REQUEST_TIMEOUT_SECONDS", 5),
 
 		DatabaseURL: getEnvWithDefault("DATABASE_URL", "postgres://metrichub:metrichub_dev@localhost:5432/metrichub?sslmode=disable"),
 		RedisURL:    getEnvWithDefault("REDIS_URL", "redis://localhost:6379"),
