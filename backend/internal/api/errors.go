@@ -16,6 +16,7 @@ var (
     ErrInternal     = errors.New("internal_error")
     ErrUnauthorized = errors.New("unauthorized")
     ErrForbidden    = errors.New("forbidden")
+    ErrTimeout      = errors.New("timeout")
 )
 
 type errorPayload struct {
@@ -40,6 +41,8 @@ func respondError(c *gin.Context, err error, message string, details interface{}
         code = http.StatusUnauthorized; errCode = "unauthorized"
     case errors.Is(err, ErrForbidden):
         code = http.StatusForbidden; errCode = "forbidden"
+    case errors.Is(err, ErrTimeout):
+        code = http.StatusGatewayTimeout; errCode = "timeout"
     }
     rid := requestIDFromContext(c)
     c.JSON(code, gin.H{"error": errorPayload{Code: errCode, Message: message, Details: details, TraceID: rid}})
@@ -75,7 +78,7 @@ func (r *Router) timeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
         case <-ctx.Done():
             // Only write if not already written
             if !c.Writer.Written() {
-                respondError(c, ErrInternal, "request timed out", nil)
+                respondError(c, ErrTimeout, "request timed out", nil)
             }
             c.Abort()
         }
