@@ -135,6 +135,7 @@ Base path: `/api/v1`
 | `/plugins` | GET | Stub plugin listing |
 | `/plugins/:name/health` | GET | Stub plugin health |
 | `/webhook/:plugin` | POST | Generic plugin webhook receiver (stub) |
+
 ### Standard Response Format
 
 All API responses are wrapped to provide consistency and traceability.
@@ -179,7 +180,7 @@ Each request receives a request_id (trace_id) injected via middleware. Propagate
 
 The server enforces a per‑request timeout (default 5s). Configure via environment variable:
 
-```
+```bash
 REQUEST_TIMEOUT_SECONDS=8
 ```
 
