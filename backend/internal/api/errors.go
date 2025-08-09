@@ -1,8 +1,10 @@
 package api
 
 import (
+    "context"
     "errors"
     "net/http"
+    "time"
     "github.com/gin-gonic/gin"
 )
 
@@ -48,9 +50,34 @@ func respondOK(c *gin.Context, payload interface{}) {
     c.JSON(http.StatusOK, gin.H{"data": payload, "trace_id": requestIDFromContext(c)})
 }
 
+func respondCreated(c *gin.Context, payload interface{}) {
+    c.JSON(http.StatusCreated, gin.H{"data": payload, "trace_id": requestIDFromContext(c)})
+}
+
 func requestIDFromContext(c *gin.Context) string {
     if v, ok := c.Get("request_id"); ok {
         if s, ok2 := v.(string); ok2 { return s }
     }
     return ""
+}
+
+// timeoutMiddleware enforces per-request timeouts; cancels context passed to handlers.
+func (r *Router) timeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
+        defer cancel()
+        c.Request = c.Request.WithContext(ctx)
+        done := make(chan struct{})
+        go func() { c.Next(); close(done) }()
+        select {
+        case <-done:
+            return
+        case <-ctx.Done():
+            // Only write if not already written
+            if !c.Writer.Written() {
+                respondError(c, ErrInternal, "request timed out", nil)
+            }
+            c.Abort()
+        }
+    }
 }
