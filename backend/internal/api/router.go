@@ -28,7 +28,7 @@ type Router struct {
 }
 
 // NewRouter creates a new API router with all dependencies
-func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis) *gin.Engine {
+func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis, requestTimeout time.Duration) *gin.Engine {
 	r := &Router{
 		logger:     logger,
 		db:         db,
@@ -49,7 +49,8 @@ func NewRouter(logger *zap.Logger, db *storage.Database, redis *storage.Redis) *
 	router.Use(r.requestIDMiddleware())
 	router.Use(r.loggingMiddleware())
 	// Use default timeout of 5s (configurable via REQUEST_TIMEOUT_SECONDS env read by config; fallback here)
-	router.Use(r.timeoutMiddleware(5 * time.Second))
+	if requestTimeout <= 0 { requestTimeout = 5 * time.Second }
+	router.Use(r.timeoutMiddleware(requestTimeout))
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
